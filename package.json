@@ -1,0 +1,24 @@
+{
+  "name": "ai-misc",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/hubenchang0515/ai-misc#readme",
+  "bugs": {
+    "url": "https://github.com/hubenchang0515/ai-misc/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hubenchang0515/ai-misc.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "npx wrangler pages deploy misc --branch main",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.54.0"
+  }
+}

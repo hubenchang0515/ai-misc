@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>杂项资源声明</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
+            padding: 40px;
+            margin: 20px 0;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .domain-name {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        
+        .page-title {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            margin-bottom: 35px;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 600;
+        }
+        
+        .section-content {
+            font-size: 1.1rem;
+            color: #444;
+            line-height: 1.8;
+        }
+        
+        .section-content p {
+            margin-bottom: 15px;
+        }
+        
+        .section-content ul, .section-content ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .section-content li {
+            margin-bottom: 10px;
+            padding-left: 8px;
+        }
+        
+        .highlight-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .notice-box {
+            background-color: #fff8e1;
+            border: 1px solid #ffd54f;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .notice-box .notice-title {
+            color: #f57c00;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .notice-box .notice-title:before {
+            content: "⚠️";
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .resources-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .resource-item {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+            transition: all 0.3s ease;
+        }
+        
+        .resource-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-color: #3498db;
+        }
+        
+        .resource-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .resource-desc {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #eaeaea;
+        }
+        
+        .footer-link {
+            color: #3498db;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        .footer-link:hover {
+            background-color: #f0f7ff;
+            border-color: #3498db;
+        }
+        
+        .update-time {
+            text-align: center;
+            color: #95a5a6;
+            font-size: 0.9rem;
+            margin-top: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .domain-name {
+                font-size: 1.5rem;
+            }
+            
+            .resources-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .page-title {
+                font-size: 1.8rem;
+            }
+            
+            body {
+                padding: 10px;
+            }
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="domain-name">misc.xplanc.org</div>
+            <h1 class="page-title">杂项资源声明</h1>
+            <p class="subtitle">此子域名存放各类实验性、工具类及临时性资源，供特定用途参考使用</p>
+        </header>
+        
+        <main>
+            <section class="content-section">
+                <h2 class="section-title"><span class="emoji">📌</span> 页面说明</h2>
+                <div class="section-content">
+                    <p>欢迎访问本子域名！此站点主要用于存放和展示各种杂项资源、实验项目、工具脚本和临时性内容。这些资源可能具有以下特点：</p>
+                    
+                    <div class="highlight-box">
+                        <p><strong>请注意：</strong> 本子域名下的内容可能未经严格测试、文档不全或仅为概念验证。部分资源可能随时间推移而过时或不再维护。</p>
+                    </div>
+                    
+                    <p>我们建议用户在使用这些资源时保持审慎态度，理解其局限性，并在生产环境使用前进行充分测试。</p>
+                </div>
+            </section>
+            
+            <section class="content-section">
+                <h2 class="section-title"><span class="emoji">📂</span> 资源类型概览</h2>
+                <div class="section-content">
+                    <p>本子域名下可能包含以下类型的资源：</p>
+                    
+                    <div class="resources-list">
+                        <div class="resource-item">
+                            <div class="resource-title">实验性项目</div>
+                            <div class="resource-desc">技术概念验证、原型实现、学习示例和探索性代码。</div>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-title">工具与脚本</div>
+                            <div class="resource-desc">实用小工具、自动化脚本、格式转换器和数据处理工具。</div>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-title">临时文件</div>
+                            <div class="resource-desc">短期存储的文件、共享资源、演示素材和临时性内容。</div>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-title">文档与示例</div>
+                            <div class="resource-desc">技术文档、使用示例、配置模板和参考实现。</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="content-section">
+                <h2 class="section-title"><span class="emoji">⚠️</span> 重要声明</h2>
+                <div class="section-content">
+                    <div class="notice-box">
+                        <div class="notice-title">使用须知与免责声明</div>
+                        <p>1. 本子域名下的资源按"原样"提供，不提供任何形式的明示或暗示保证。</p>
+                        <p>2. 资源可能包含错误、漏洞或不适合特定用途，使用前请自行评估风险。</p>
+                        <p>3. 我们不保证资源的持续可用性、完整性或及时更新。</p>
+                        <p>4. 使用本子域名资源所产生的任何后果，由使用者自行承担。</p>
+                    </div>
+                    
+                    <p>我们建议用户：</p>
+                    <ul>
+                        <li>在生产环境使用前进行充分测试和评估</li>
+                        <li>根据自身需求修改和适配资源</li>
+                        <li>关注资源的上传/更新时间，判断其时效性</li>
+                        <li>遵守相关法律法规和许可协议</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <section class="content-section">
+                <h2 class="section-title"><span class="emoji">🔗</span> 相关链接</h2>
+                <div class="section-content">
+                    <p>如果您需要更稳定、正式的资源，请访问我们的主站或相关项目页面：</p>
+                    
+                    <ul>
+                        <li><strong>主站地址：</strong> <a href="https://xplanc.org" target="_blank">https://xplanc.org</a> - 获取正式产品和服务</li>
+                        <li><strong>项目仓库：</strong> <a href="https://github.com/hubenchang0515/ai-misc" target="_blank">GitHub</a> - 获取开源项目和源代码</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+        
+        <div class="footer-links">
+            <a href="https://xplanc.org" class="footer-link" target="_blank">返回主站</a>
+        </div>
+        
+        <div class="update-time">
+            最后更新：2025年12月 | 本声明可能随时更新，恕不另行通知
+        </div>
+    </div>
+    
+    <script>
+        // 自动更新年份
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentYear = new Date().getFullYear();
+            const yearElements = document.querySelectorAll('.current-year');
+            
+            yearElements.forEach(element => {
+                element.textContent = currentYear;
+            });
+            
+            // 添加简单的交互效果
+            const resourceItems = document.querySelectorAll('.resource-item');
+            
+            resourceItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.98)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 200);
+                });
+            });
+            
+            // 更新页面访问时间
+            const now = new Date();
+            const formattedDate = now.getFullYear() + '年' + 
+                                 (now.getMonth() + 1) + '月' + 
+                                 now.getDate() + '日';
+            
+            // 如果有需要显示访问时间的地方，可以在这里添加
+            // console.log('页面访问时间:', formattedDate);
+        });
+    </script>
+</body>
+</html>
