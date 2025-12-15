@@ -532,7 +532,6 @@
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
                     <p class="upload-text">点击选择图片或拖拽图片到此处</p>
-                    <p class="upload-hint">支持 JPG, PNG, GIF, WebP 格式，最大5MB</p>
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept="image/*">
                 
@@ -840,11 +839,6 @@
             
             // 处理图片文件
             function handleImageFile(file) {
-                // 检查文件大小（限制5MB）
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('图片文件太大，请选择小于5MB的图片！');
-                    return;
-                }
                 
                 originalImageFile = file;
                 
@@ -1194,24 +1188,19 @@
             function downloadSingleImages() {
                 if (splitImages.length === 0) return;
                 
-                // 询问用户是否要逐个下载
-                if (!confirm(`将逐个下载24个图片碎片，确定要继续吗？`)) return;
-                
                 // 使用延迟下载，避免浏览器阻止
                 let delay = 0;
                 splitImages.forEach((img, index) => {
                     setTimeout(() => {
                         const link = document.createElement('a');
                         link.href = img.dataUrl;
-                        link.download = `图片碎片_${index + 1}_(${img.row+1}-${img.col+1}).png`;
+                        link.download = `meme_${(index + 1).toString().padStart(2, '0')}.png`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     }, delay);
                     delay += 300; // 300ms延迟，避免浏览器阻止多次下载
                 });
-                
-                alert('开始下载24个碎片，请稍候...');
             }
             
             // 下载网格合成图
