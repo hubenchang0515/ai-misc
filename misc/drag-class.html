@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程表制作</title>
+    <link rel="canonical" href="https://xplanc.org/primers/document/zh/03.HTML/90.实践案例/01.课程表.md"/>
+    <style>
+        #root {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #main {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+        }
+
+        #classList {
+            padding: 4px;
+            border: 2px solid deepskyblue;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #title {
+            font-weight: bolder;
+            margin-bottom: 8px;
+            padding: 4px;
+            border: 2px solid deepskyblue;
+        }
+
+        .classCard {
+            padding: 0.25rem 1rem;
+            background: palegreen;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        th, td {
+            width: 80px;
+            height: 45px;
+            border: 2px solid deepskyblue;
+            text-align: center;
+        }
+
+        #tips {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .drag-over {
+            background: rgba(0,0,0,0.1);
+        }
+
+        @media print {
+            .no-print, .no-print * {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <h1 class="no-print">课程表制作</h1>
+        <main id="main">
+            <div id="classList" class="no-print"></div>
+            <div id="schedule">
+                <table>
+                    <caption id="title" contenteditable="true">课程表</caption>
+                    <thead>
+                        <tr>
+                            <th contenteditable="true"></th>
+                            <th contenteditable="true">星期一</th>
+                            <th contenteditable="true">星期二</th>
+                            <th contenteditable="true">星期三</th>
+                            <th contenteditable="true">星期四</th>
+                            <th contenteditable="true">星期五</th>
+                            <th contenteditable="true">星期六</th>
+                            <th contenteditable="true">星期日</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="4" contenteditable="true"> 上午 </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <td colspan="8" contenteditable="true">午休</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="4" contenteditable="true">下午</td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                        <tr>
+                            <!-- <td contenteditable="true" data-slot="true"> </td> -->
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                            <td contenteditable="true" data-slot="true"> </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <div id="tips" class="no-print">
+            <p>将左侧课程拖入单元格，也可以点击单元格直接编辑。</p>
+            <button onclick="print()">打印</button>
+        </div>
+    </div>
+    <script>
+        const classList = ["语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理", "美术", "音乐", "体育"]
+        const classListDiv = document.querySelector('#classList');
+        classListDiv.innerHTML = classList.map((item)=>`<div class="classCard" draggable="true">${item}</div>`).join('\n');
+        
+        const mainDiv = document.querySelector("#main");
+        let source = undefined;
+        mainDiv.ondragstart = (ev) => {
+            ev.dataTransfer.effectAllowed = 'copy';
+            source = ev.target;
+        }
+
+        mainDiv.ondragover = (ev) => {
+            ev.preventDefault();
+        }
+
+        mainDiv.ondragenter = (ev) => {
+            if (ev.target.dataset.slot === "true") {
+                ev.target.classList.add('drag-over')
+            }
+        }
+
+        mainDiv.ondragleave = (ev) => {
+            ev.target.classList.remove('drag-over');
+        } 
+
+        mainDiv.ondrop = (ev) => {
+            ev.target.classList.remove('drag-over');
+            if (ev.target.dataset.slot === "true") {
+                ev.target.innerText = source.innerText;
+            }
+        }
+    </script>
+</body>
+</html>
