@@ -1,0 +1,570 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋 - AI对战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 20px;
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .player-info {
+            padding: 15px 25px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .player-info.active {
+            box-shadow: 0 0 20px rgba(255,215,0,0.5);
+            border: 2px solid #ffd700;
+        }
+        
+        .player-info.ai-active {
+            box-shadow: 0 0 20px rgba(255,100,100,0.5);
+            border: 2px solid #ff6464;
+        }
+        
+        .stone {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .stone.black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+        }
+        
+        .stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+        }
+        
+        .board-container {
+            position: relative;
+            display: inline-block;
+            padding: 20px;
+            background: linear-gradient(145deg, #deb887, #cd853f);
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        #board {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            gap: 0;
+            background: #deb887;
+            position: relative;
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cell::before,
+        .cell::after {
+            content: '';
+            position: absolute;
+            background: #8b4513;
+        }
+        
+        .cell::before {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+            left: 0;
+        }
+        
+        .cell::after {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+            top: 0;
+        }
+        
+        .cell:hover::before {
+            background: #ffd700;
+            height: 2px;
+        }
+        
+        .cell:hover::after {
+            background: #ffd700;
+            width: 2px;
+        }
+        
+        .piece {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            position: relative;
+            z-index: 10;
+            transition: transform 0.2s;
+            animation: placePiece 0.3s ease-out;
+        }
+        
+        @keyframes placePiece {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .piece.black {
+            background: radial-gradient(circle at 30% 30%, #666, #000);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        .piece.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .piece.last-move {
+            box-shadow: 0 0 15px #ffd700, inset 0 0 10px rgba(255,215,0,0.3);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .btn-restart {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-restart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.5);
+        }
+        
+        .btn-undo {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        .btn-undo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(240,147,251,0.5);
+        }
+        
+        .status-message {
+            margin-top: 20px;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .status-message.win {
+            background: linear-gradient(45deg, #00d26a, #00b894);
+            animation: pulse 1s infinite;
+        }
+        
+        .status-message.lose {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a5a);
+        }
+        
+        .status-message.thinking {
+            background: linear-gradient(45deg, #ffd93d, #ff9f43);
+            color: #333;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .winning-line {
+            position: absolute;
+            background: #ffd700;
+            z-index: 20;
+            border-radius: 2px;
+            animation: drawLine 0.5s ease-out;
+        }
+        
+        @keyframes drawLine {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 五子棋对战</h1>
+        <p class="subtitle">AI 对手已就绪 · 先手执黑</p>
+        
+        <div class="game-info">
+            <div class="player-info active" id="player-black">
+                <div class="stone black"></div>
+                <div>玩家 (黑)</div>
+            </div>
+            <div class="player-info" id="player-white">
+                <div class="stone white"></div>
+                <div>AI (白)</div>
+            </div>
+        </div>
+        
+        <div class="board-container">
+            <div id="board"></div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-restart" onclick="restartGame()">🔄 重新开始</button>
+            <button class="btn-undo" onclick="undoMove()">↩️ 悔棋</button>
+        </div>
+        
+        <div class="status-message" id="status">点击棋盘开始游戏</div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 15;
+        let board = [];
+        let currentPlayer = 'black';
+        let gameOver = false;
+        let moveHistory = [];
+        let lastMove = null;
+        
+        // Initialize board
+        function initBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            moveHistory = [];
+            lastMove = null;
+            gameOver = false;
+            currentPlayer = 'black';
+            
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.onclick = () => handleCellClick(row, col);
+                    boardElement.appendChild(cell);
+                }
+            }
+            
+            updateStatus('点击棋盘开始游戏');
+            updatePlayerIndicator();
+        }
+        
+        function handleCellClick(row, col) {
+            if (gameOver || board[row][col] !== null || currentPlayer !== 'black') {
+                return;
+            }
+            
+            makeMove(row, col, 'black');
+            
+            if (!gameOver) {
+                currentPlayer = 'white';
+                updatePlayerIndicator();
+                updateStatus('AI 思考中...', 'thinking');
+                
+                setTimeout(() => {
+                    const aiMove = getAIMove();
+                    if (aiMove) {
+                        makeMove(aiMove.row, aiMove.col, 'white');
+                        if (!gameOver) {
+                            currentPlayer = 'black';
+                            updatePlayerIndicator();
+                            updateStatus('轮到您下棋');
+                        }
+                    }
+                }, 500);
+            }
+        }
+        
+        function makeMove(row, col, player) {
+            board[row][col] = player;
+            moveHistory.push({row, col, player});
+            lastMove = {row, col};
+            
+            renderPiece(row, col, player);
+            
+            if (checkWin(row, col, player)) {
+                gameOver = true;
+                const message = player === 'black' ? '🎉 恭喜您获胜！' : '😔 AI 获胜，再接再厉！';
+                updateStatus(message, player === 'black' ? 'win' : 'lose');
+            } else if (moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
+                gameOver = true;
+                updateStatus('🤝 平局！', '');
+            }
+        }
+        
+        function renderPiece(row, col, player) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const piece = document.createElement('div');
+            piece.className = `piece ${player}`;
+            cell.appendChild(piece);
+            
+            // Remove last-move highlight from previous move
+            document.querySelectorAll('.piece.last-move').forEach(p => p.classList.remove('last-move'));
+            piece.classList.add('last-move');
+        }
+        
+        function checkWin(row, col, player) {
+            const directions = [
+                [[0, 1], [0, -1]],   // Horizontal
+                [[1, 0], [-1, 0]],   // Vertical
+                [[1, 1], [-1, -1]],  // Diagonal \
+                [[1, -1], [-1, 1]]   // Diagonal /
+            ];
+            
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                
+                for (const [dr, dc] of [dir1, dir2]) {
+                    let r = row + dr;
+                    let c = col + dc;
+                    while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+                        count++;
+                        r += dr;
+                        c += dc;
+                    }
+                }
+                
+                if (count >= 5) return true;
+            }
+            
+            return false;
+        }
+        
+        // AI Logic - Simple heuristic evaluation
+        function getAIMove() {
+            let bestScore = -Infinity;
+            let bestMove = null;
+            
+            // Check for immediate win or block
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === null) {
+                        // Check if AI can win
+                        board[row][col] = 'white';
+                        if (checkWin(row, col, 'white')) {
+                            board[row][col] = null;
+                            return {row, col};
+                        }
+                        board[row][col] = null;
+                        
+                        // Check if need to block player
+                        board[row][col] = 'black';
+                        if (checkWin(row, col, 'black')) {
+                            board[row][col] = null;
+                            return {row, col};
+                        }
+                        board[row][col] = null;
+                    }
+                }
+            }
+            
+            // Evaluate all possible moves
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === null) {
+                        const score = evaluatePosition(row, col);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = {row, col};
+                        }
+                    }
+                }
+            }
+            
+            return bestMove;
+        }
+        
+        function evaluatePosition(row, col) {
+            let score = 0;
+            
+            // Center preference
+            const centerDist = Math.abs(row - 7) + Math.abs(col - 7);
+            score += (14 - centerDist) * 10;
+            
+            // Check all directions for patterns
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            
+            for (const [dr, dc] of directions) {
+                // Evaluate for white (AI)
+                score += evaluateDirection(row, col, dr, dc, 'white') * 1.1;
+                // Evaluate for black (player) - defensive
+                score += evaluateDirection(row, col, dr, dc, 'black');
+            }
+            
+            return score;
+        }
+        
+        function evaluateDirection(row, col, dr, dc, player) {
+            let count = 0;
+            let blocked = 0;
+            
+            // Check positive direction
+            let r = row + dr;
+            let c = col + dc;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+                if (board[r][c] === player) {
+                    count++;
+                } else if (board[r][c] !== null) {
+                    blocked++;
+                    break;
+                } else {
+                    break;
+                }
+                r += dr;
+                c += dc;
+            }
+            
+            // Check negative direction
+            r = row - dr;
+            c = col - dc;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+                if (board[r][c] === player) {
+                    count++;
+                } else if (board[r][c] !== null) {
+                    blocked++;
+                    break;
+                } else {
+                    break;
+                }
+                r -= dr;
+                c -= dc;
+            }
+            
+            // Score based on count and openness
+            if (count >= 4) return 10000;
+            if (count === 3 && blocked === 0) return 1000;
+            if (count === 3 && blocked === 1) return 100;
+            if (count === 2 && blocked === 0) return 100;
+            if (count === 2 && blocked === 1) return 10;
+            if (count === 1 && blocked === 0) return 10;
+            
+            return count * 5;
+        }
+        
+        function undoMove() {
+            if (moveHistory.length < 2 || gameOver) return;
+            
+            // Undo AI move
+            const aiMove = moveHistory.pop();
+            board[aiMove.row][aiMove.col] = null;
+            removePiece(aiMove.row, aiMove.col);
+            
+            // Undo player move
+            const playerMove = moveHistory.pop();
+            board[playerMove.row][playerMove.col] = null;
+            removePiece(playerMove.row, playerMove.col);
+            
+            // Update last move highlight
+            if (moveHistory.length > 0) {
+                const last = moveHistory[moveHistory.length - 1];
+                const cell = document.querySelector(`[data-row="${last.row}"][data-col="${last.col}"]`);
+                const piece = cell.querySelector('.piece');
+                if (piece) piece.classList.add('last-move');
+                lastMove = {row: last.row, col: last.col};
+            } else {
+                lastMove = null;
+            }
+            
+            updateStatus('轮到您下棋');
+        }
+        
+        function removePiece(row, col) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const piece = cell.querySelector('.piece');
+            if (piece) piece.remove();
+        }
+        
+        function restartGame() {
+            initBoard();
+        }
+        
+        function updateStatus(message, type = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status-message ' + type;
+        }
+        
+        function updatePlayerIndicator() {
+            const blackInfo = document.getElementById('player-black');
+            const whiteInfo = document.getElementById('player-white');
+            
+            if (currentPlayer === 'black') {
+                blackInfo.classList.add('active');
+                whiteInfo.classList.remove('ai-active');
+            } else {
+                blackInfo.classList.remove('active');
+                whiteInfo.classList.add('ai-active');
+            }
+        }
+        
+        // Initialize game on load
+        initBoard();
+    </script>
+</body>
+</html>
