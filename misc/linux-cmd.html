@@ -87,6 +87,7 @@
                     const link = document.createElement("a");
                     link.href = cmd[0];
                     link.innerText = cmd[1];
+                    link.target = "_blank"
                     link.className = "text-slate-400 hover:text-emerald-500 hover:underline flex items-center justify-center";
                     container.appendChild(link);
                 }
