@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轻量 · Base32 / Base64 转换工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'SF Mono', 'Fira Code', 'Roboto Mono', 'Consolas', monospace;
+        }
+        body {
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f0f5 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .card {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 42px;
+            box-shadow: 0 30px 60px -20px rgba(0,40,80,0.35), 0 0 0 1px rgba(255,255,255,0.6) inset;
+            padding: 32px 28px;
+        }
+        h1 {
+            font-size: 2.1rem;
+            font-weight: 500;
+            letter-spacing: -0.5px;
+            margin: 0 0 10px 0;
+            color: #0b2b40;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        h1 span {
+            background: #1d3f5e;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 400;
+            padding: 6px 14px;
+            border-radius: 60px;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 8px rgba(0,20,30,0.15);
+        }
+        .sub {
+            color: #2c4e6e;
+            font-size: 1rem;
+            margin: -5px 0 30px 2px;
+            font-style: italic;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 680px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+                gap: 28px;
+            }
+        }
+        .panel {
+            background: #ffffffdd;
+            border-radius: 28px;
+            padding: 22px 22px 26px;
+            box-shadow: 0 8px 22px -8px rgba(0,30,50,0.2), 0 4px 0 0 #ffffff inset;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+        .panel h2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 450;
+            font-size: 1.6rem;
+            color: #143b4b;
+            margin: 0 0 10px 0;
+            letter-spacing: -0.3px;
+            border-bottom: 2px dashed #a0c1d9;
+            padding-bottom: 12px;
+        }
+        .badge {
+            background: #305f7a;
+            color: white;
+            font-size: 0.8rem;
+            border-radius: 40px;
+            padding: 4px 14px;
+            font-weight: 400;
+        }
+        .io-area {
+            margin: 20px 0 14px;
+        }
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #1e4e6b;
+            margin-left: 8px;
+        }
+        textarea, input {
+            width: 100%;
+            background: #f1f9ff;
+            border: 2px solid #c8ddec;
+            border-radius: 22px;
+            padding: 16px 20px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            resize: vertical;
+            color: #002b36;
+            outline: none;
+            transition: 0.15s;
+            font-family: inherit;
+            box-shadow: inset 0 2px 5px rgba(0,20,30,0.05);
+        }
+        textarea:focus, input:focus {
+            border-color: #3f8db3;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(58, 140, 185, 0.2);
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 20px 0 8px;
+            align-items: center;
+        }
+        .btn {
+            background: white;
+            border: 1.5px solid #3f7e9e;
+            color: #1f4b64;
+            padding: 10px 22px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.1s ease;
+            box-shadow: 0 5px 12px -8px #1f4b64;
+            backdrop-filter: blur(2px);
+            letter-spacing: 0.2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover {
+            background: #edf6fd;
+            border-color: #2a6c8a;
+            box-shadow: 0 8px 14px -8px #1a4b63;
+            transform: scale(1.02);
+        }
+        .btn.primary {
+            background: #2b6c8f;
+            border-color: #15485f;
+            color: white;
+            box-shadow: 0 6px 14px -6px #0a3342;
+        }
+        .btn.primary:hover {
+            background: #1f5a7a;
+        }
+        .btn.small {
+            padding: 6px 16px;
+            font-size: 0.85rem;
+        }
+        .info-hint {
+            font-size: 0.8rem;
+            color: #386a82;
+            background: #e3f0f8;
+            padding: 6px 14px;
+            border-radius: 50px;
+            display: inline-block;
+        }
+        .footer-note {
+            margin-top: 32px;
+            background: #d9e7f1b3;
+            border-radius: 60px;
+            padding: 14px 26px;
+            font-size: 0.9rem;
+            color: #1a4a63;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid white;
+        }
+        .separator-dot {
+            width: 6px;
+            height: 6px;
+            background: #5c8caa;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 12px;
+        }
+        .error-message {
+            color: #b13e3e;
+            background: #ffebeb;
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid #ffbaba;
+            margin-top: 10px;
+        }
+        .copy-confirm {
+            color: #1c6b3f;
+            background: #dff0e4;
+            border-radius: 30px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .copy-confirm.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>
+        🔄 base32 · base64 转换器
+        <span>标准编码 / 解码</span>
+    </h1>
+    <div class="sub">RFC 4648 — 纯文本 / 字节流互转，双向实时操作</div>
+
+    <div class="grid-container">
+        <!-- 左侧: Base64 区块 -->
+        <div class="panel">
+            <h2>
+                <span>🔹</span> Base64
+                <span class="badge">标准表 A–Z a–z 0–9 + /</span>
+            </h2>
+            <div class="io-area">
+                <label>📋 输入文本 / Base64 字符串</label>
+                <textarea id="base64Input" rows="5" placeholder="例如: Hello, 世界! 或 5bCP6aO85by+...">SGVsbG8sIHdvcmxkIQ==</textarea>
+            </div>
+            <div class="button-row">
+                <button class="btn" id="b64EncodeBtn">⬇️ 编码 → Base64</button>
+                <button class="btn" id="b64DecodeBtn">⬆️ 解码 → 原文</button>
+                <button class="btn small" id="b64CopyBtn">📋 复制Base64</button>
+                <span id="b64CopyConfirm" class="copy-confirm">✓ 已复制</span>
+            </div>
+            <div class="io-area" style="margin-top: 10px;">
+                <label>🔎 结果 / 原文预览</label>
+                <textarea id="base64Output" rows="4" placeholder="解码结果或编码结果会出现在这里..." readonly></textarea>
+            </div>
+            <div id="base64Error" class="error-message" style="display: none;"></div>
+            <div style="margin-top: 10px;" class="info-hint">⚡ 普通文本自动UTF8编码，兼容二进制安全</div>
+        </div>
+
+        <!-- 右侧: Base32 区块 -->
+        <div class="panel">
+            <h2>
+                <span>🔸</span> Base32
+                <span class="badge">大写字母 A–Z + 2–7</span>
+            </h2>
+            <div class="io-area">
+                <label>📋 输入文本 / Base32 字符串</label>
+                <textarea id="base32Input" rows="5" placeholder="例如: Hello, 世界! 或 NBSWY3DPFQQHIYJX">NBSWY3DPFQQHIYJX</textarea>
+            </div>
+            <div class="button-row">
+                <button class="btn" id="b32EncodeBtn">⬇️ 编码 → Base32</button>
+                <button class="btn" id="b32DecodeBtn">⬆️ 解码 → 原文</button>
+                <button class="btn small" id="b32CopyBtn">📋 复制Base32</button>
+                <span id="b32CopyConfirm" class="copy-confirm">✓ 已复制</span>
+            </div>
+            <div class="io-area" style="margin-top: 10px;">
+                <label>🔎 结果 / 原文预览</label>
+                <textarea id="base32Output" rows="4" placeholder="解码结果或编码结果会出现在这里..." readonly></textarea>
+            </div>
+            <div id="base32Error" class="error-message" style="display: none;"></div>
+            <div style="margin-top: 10px;" class="info-hint">⚡ 非字母自动转大写, 忽略空格与等号补位</div>
+        </div>
+    </div>
+
+    <!-- 底部小贴士 + 实时互转 -->
+    <div class="footer-note">
+        <span style="display: flex; gap: 12px; align-items: center;">
+            <span>🔄 双向转换</span>
+            <span class="separator-dot"></span>
+            <span>Base64 标准字符集: A–Z a–z 0–9 + / =</span>
+            <span class="separator-dot"></span>
+            <span>Base32 标准字符集: A–Z 2–7 =</span>
+        </span>
+        <span style="font-size: 0.8rem;">⬅️ 两侧独立操作，可对比</span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---- 工具函数: UTF8 <-> Uint8Array ----
+        function stringToBytes(str) {
+            return new TextEncoder().encode(str);
+        }
+        function bytesToString(bytes) {
+            return new TextDecoder().decode(bytes);
+        }
+
+        // ---- Base64 标准 (浏览器内置) ----
+        function base64Encode(plain) {
+            try {
+                const bytes = stringToBytes(plain);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return btoa(binary);
+            } catch (e) {
+                throw new Error('编码失败: 非法字符?');
+            }
+        }
+
+        function base64Decode(b64) {
+            try {
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return bytesToString(bytes);
+            } catch (e) {
+                throw new Error('无效的Base64字符串 (无法解码)');
+            }
+        }
+
+        // ---- Base32 实现 (RFC 4648, 大写字母+数字2-7, 填充=) ----
+        function base32Encode(plain) {
+            const bytes = stringToBytes(plain);
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let result = '';
+            let bits = 0;
+            let value = 0;
+
+            for (let i = 0; i < bytes.length; i++) {
+                value = (value << 8) | bytes[i];
+                bits += 8;
+
+                while (bits >= 5) {
+                    const index = (value >>> (bits - 5)) & 31;
+                    result += alphabet[index];
+                    bits -= 5;
+                }
+            }
+            // 剩余字节
+            if (bits > 0) {
+                const index = (value << (5 - bits)) & 31;
+                result += alphabet[index];
+            }
+            // 填充 '=' 至长度为8的倍数
+            while (result.length % 8 !== 0) {
+                result += '=';
+            }
+            return result;
+        }
+
+        function base32Decode(b32) {
+            // 清理: 移除空格、连字符等，转为大写，移除可能的填充
+            let clean = b32.replace(/[=\s]/g, '').toUpperCase();
+            if (clean.length === 0) return '';
+
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let bits = 0;
+            let value = 0;
+            let outBytes = [];
+
+            for (let i = 0; i < clean.length; i++) {
+                const ch = clean[i];
+                const idx = alphabet.indexOf(ch);
+                if (idx === -1) {
+                    throw new Error(`非法Base32字符: "${ch}"`);
+                }
+                value = (value << 5) | idx;
+                bits += 5;
+
+                if (bits >= 8) {
+                    const byte = (value >>> (bits - 8)) & 255;
+                    outBytes.push(byte);
+                    bits -= 8;
+                }
+            }
+            // 这里不严格处理剩余bits (如果有剩余bits但不足8，标准解码应当忽略，但部分场景可能表示输入无效)
+            // 但可检查: 如果剩余 bits 包含非零信息且原始输入有填充可能，但简单实现就忽略。
+            // 严格可判断 bits >=5 且有非零值? 为了安全，如果剩余 bits 大于0且剩余值低5位不为0，视为无效填充。
+            if (bits >= 5) {
+                // 检查剩余部分是否为零 (允许的尾随零)
+                const remaining = value & ((1 << bits) - 1);
+                if (remaining !== 0) {
+                    throw new Error('无效Base32 (尾部非零)');
+                }
+            }
+            return bytesToString(new Uint8Array(outBytes));
+        }
+
+        // ---- DOM 元素 ----
+        const b64Input = document.getElementById('base64Input');
+        const b64Output = document.getElementById('base64Output');
+        const b64Error = document.getElementById('base64Error');
+        const b64CopyConfirm = document.getElementById('b64CopyConfirm');
+
+        const b32Input = document.getElementById('base32Input');
+        const b32Output = document.getElementById('base32Output');
+        const b32Error = document.getElementById('base32Error');
+        const b32CopyConfirm = document.getElementById('b32CopyConfirm');
+
+        // ---- 通用显示错误/清除 ----
+        function setError(element, message) {
+            if (message) {
+                element.style.display = 'block';
+                element.innerText = message;
+            } else {
+                element.style.display = 'none';
+                element.innerText = '';
+            }
+        }
+
+        // ---- Base64 操作 ----
+        document.getElementById('b64EncodeBtn').addEventListener('click', () => {
+            try {
+                const plain = b64Input.value;
+                if (plain === '') {
+                    b64Output.value = '';
+                    setError(b64Error, '');
+                    return;
+                }
+                const encoded = base64Encode(plain);
+                b64Output.value = encoded;
+                setError(b64Error, '');
+            } catch (err) {
+                b64Output.value = '';
+                setError(b64Error, err.message);
+            }
+        });
+
+        document.getElementById('b64DecodeBtn').addEventListener('click', () => {
+            try {
+                const b64 = b64Input.value.trim();
+                if (b64 === '') {
+                    b64Output.value = '';
+                    setError(b64Error, '');
+                    return;
+                }
+                const decoded = base64Decode(b64);
+                b64Output.value = decoded;
+                setError(b64Error, '');
+            } catch (err) {
+                b64Output.value = '';
+                setError(b64Error, err.message);
+            }
+        });
+
+        // 复制 Base64 结果 (右侧结果区)
+        document.getElementById('b64CopyBtn').addEventListener('click', () => {
+            const text = b64Output.value;
+            if (!text) {
+                setError(b64Error, '没有可复制的内容');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                b64CopyConfirm.classList.add('show');
+                setTimeout(() => b64CopyConfirm.classList.remove('show'), 1500);
+                setError(b64Error, '');
+            }).catch(() => {
+                setError(b64Error, '复制失败，请手动复制');
+            });
+        });
+
+        // ---- Base32 操作 ----
+        document.getElementById('b32EncodeBtn').addEventListener('click', () => {
+            try {
+                const plain = b32Input.value;
+                if (plain === '') {
+                    b32Output.value = '';
+                    setError(b32Error, '');
+                    return;
+                }
+                const encoded = base32Encode(plain);
+                b32Output.value = encoded;
+                setError(b32Error, '');
+            } catch (err) {
+                b32Output.value = '';
+                setError(b32Error, err.message);
+            }
+        });
+
+        document.getElementById('b32DecodeBtn').addEventListener('click', () => {
+            try {
+                const b32 = b32Input.value;
+                if (b32 === '') {
+                    b32Output.value = '';
+                    setError(b32Error, '');
+                    return;
+                }
+                const decoded = base32Decode(b32);
+                b32Output.value = decoded;
+                setError(b32Error, '');
+            } catch (err) {
+                b32Output.value = '';
+                setError(b32Error, err.message);
+            }
+        });
+
+        document.getElementById('b32CopyBtn').addEventListener('click', () => {
+            const text = b32Output.value;
+            if (!text) {
+                setError(b32Error, '没有可复制的内容');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                b32CopyConfirm.classList.add('show');
+                setTimeout(() => b32CopyConfirm.classList.remove('show'), 1500);
+                setError(b32Error, '');
+            }).catch(() => {
+                setError(b32Error, '复制失败，请手动复制');
+            });
+        });
+
+        // 可选: 预填充示例值对应的输出结果 (让页面一开始就有示例)
+        (function initExamples() {
+            // Base64 初始编码展示: 右边显示解码 (SGVsbG8sIHdvcmxkIQ== -> Hello, world!)
+            try {
+                b64Output.value = base64Decode('SGVsbG8sIHdvcmxkIQ==');
+            } catch (e) { b64Output.value = 'Hello, world! (示例解码)'; }
+            // Base32 初始: NBSWY3DPFQQHIYJX 解码为 "Hello, world!" ?
+            try {
+                b32Output.value = base32Decode('NBSWY3DPFQQHIYJX');
+            } catch (e) { b32Output.value = 'Hello, world! (示例解码)'; }
+        })();
+
+        // 辅助: 点击编码/解码时自动清空同侧错误
+        const clearErrorOnInput = (inputElem, errorElem) => {
+            inputElem.addEventListener('input', () => setError(errorElem, ''));
+        };
+        clearErrorOnInput(b64Input, b64Error);
+        clearErrorOnInput(b32Input, b32Error);
+    })();
+</script>
+</body>
+</html>

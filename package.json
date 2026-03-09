@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "deploy": "npx wrangler pages deploy misc --branch main",
+    "deploy": "npx wrangler pages deploy docs --branch main",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {

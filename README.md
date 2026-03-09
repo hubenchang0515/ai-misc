@@ -3,6 +3,7 @@
 AI 生成的一些乱七八糟的应用
 
 * [四则运算限时训练](https://misc.xplanc.org/arithmetic)
+* [base32/base64 编解码](https://misc.xplanc.org/base32-64)
 * [表情包切割](https://misc.xplanc.org/cut-6x4)
 * [课程表制作](https://misc.xplanc.org/drag-class)
 * [五子棋](https://misc.xplanc.org/five-in-a-row)
