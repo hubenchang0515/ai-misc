@@ -34,7 +34,8 @@
                     autocomplete="off"
                     class="w-full pl-12 pr-4 py-3 border border-slate-400 rounded-l-xl
                         focus:outline-none focus:ring-2 focus:ring-emerald-500
-                        focus:border-emerald-500 transition"
+                        focus:border-emerald-500 transition 
+                        text-white placeholder-slate-500"
                 />
                 </div>
 
@@ -82,7 +83,6 @@
             async function init() {
                 await load();
                 const container = document.getElementById("container");
-                let first = ""
                 for (const cmd of cmds) {
                     const link = document.createElement("a");
                     link.href = cmd[0];
