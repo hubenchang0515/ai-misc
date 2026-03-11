@@ -9,5 +9,6 @@ AI 生成的一些乱七八糟的应用
 * [五子棋](https://misc.xplanc.org/five-in-a-row)
 * [Linux 命令搜索](https://misc.xplanc.org/linux-cmd)
 * [二维码生成与解析](https://misc.xplanc.org/qrcode)
+* [赛车](https://misc.xplanc.org/race)
 * [贪吃蛇](https://misc.xplanc.org/snake)
 * [俄罗斯方块](https://misc.xplanc.org/tetris)

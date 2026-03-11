@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas 赛车 · 躲开车流</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0a2f1f;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .game-container {
+            background: #1e3b2a;
+            padding: 20px;
+            border-radius: 24px;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.6);
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            background: #2e4a3a;
+            box-shadow: inset 0 0 0 2px #6b8c5c, 0 10px 15px -5px #0f2c1d;
+            cursor: none;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding: 10px 18px;
+            background: #1a3124;
+            border-radius: 60px;
+            color: #b3ffcf;
+            font-weight: bold;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            border: 2px solid #4f7b5f;
+            box-shadow: inset 0 2px 5px #0f1e14;
+        }
+        .score-board {
+            background: #0c2319;
+            padding: 6px 22px;
+            border-radius: 40px;
+            border: 1px solid #8fc0a9;
+            color: #f0ffe0;
+            font-size: 1.6rem;
+        }
+        button {
+            background: #6d8f72;
+            border: none;
+            color: #0e2b1a;
+            font-weight: bold;
+            font-size: 1.2rem;
+            font-family: inherit;
+            padding: 8px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 7px 0 #2b4d33, 0 8px 12px black;
+            transition: 0.07s ease;
+            border: 1px solid #b7e0b0;
+            letter-spacing: 1.5px;
+        }
+        button:active {
+            transform: translateY(7px);
+            box-shadow: 0 2px 0 #2b4d33, 0 5px 10px black;
+        }
+        .hint {
+            display: flex;
+            gap: 20px;
+            color: #bbddaa;
+        }
+        .hint kbd {
+            background: #263d2b;
+            color: #dbffd0;
+            padding: 3px 10px;
+            border-radius: 30px;
+            font-size: 1rem;
+            border: 1px solid #7baa76;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div class="info-panel">
+        <span class="hint">← <kbd>⬆️</kbd> →</span>
+        <span class="score-board" id="scoreDisplay">000</span>
+        <button id="restartBtn">↺ 发车</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreSpan = document.getElementById('scoreDisplay');
+
+        // 固定尺寸参数
+        const LANE_COUNT = 3;
+        const LANE_WIDTH = canvas.width / LANE_COUNT;  // 约133.33px
+        const CAR_WIDTH = 40;
+        const CAR_HEIGHT = 70;
+        const ENEMY_WIDTH = 42;        // 对手车稍宽一点，增加挑战
+        const ENEMY_HEIGHT = 80;
+
+        // 玩家起始位置 (中间车道)
+        const PLAYER_START_X = (canvas.width - CAR_WIDTH) / 2;   // 180
+        const PLAYER_FIXED_Y = canvas.height - 100;  // 离底部稍近, 视野舒服
+
+        // ----- 游戏状态 -----
+        let gameActive = true;
+        let score = 0;
+
+        // 玩家坐标 (只允许水平移动)
+        let playerX = PLAYER_START_X;
+        const playerY = PLAYER_FIXED_Y;
+
+        // 敌对车辆数组
+        let enemies = [];
+
+        // 移动控制标志 (左右方向)
+        let leftPressed = false;
+        let rightPressed = false;
+
+        // 刷新率控制 & 难度
+        let frameCounter = 0;
+        const ENEMY_SPAWN_RATE = 50;        // 每50帧生成一辆 (约0.8秒 60fps下)
+        const BASE_SPEED = 3.5;              // 基础下落速度
+
+        // 辅助函数：更新分数显示 (三位数，带前导零)
+        function updateScoreDisplay() {
+            let str = String(Math.floor(score));
+            while (str.length < 3) str = '0' + str;
+            scoreSpan.textContent = str;
+        }
+
+        // 重置游戏
+        function resetGame() {
+            gameActive = true;
+            score = 0;
+            enemies = [];
+            playerX = PLAYER_START_X;
+            leftPressed = false;
+            rightPressed = false;
+            frameCounter = 0;
+            updateScoreDisplay();
+        }
+
+        // 生成一辆对手车 (随机车道，但避开与玩家完全重叠的极端情况靠逻辑)
+        function spawnEnemy() {
+            const laneIndex = Math.floor(Math.random() * LANE_COUNT);
+            // 根据车道计算x (让车大致在车道中间)
+            let laneCenterX = laneIndex * LANE_WIDTH + LANE_WIDTH / 2;
+            let enemyX = laneCenterX - ENEMY_WIDTH / 2;
+
+            // 避免生成时直接骑脸 (如果玩家刚好在最左/最右，允许微调，但极简处理)
+            // 为了防止出生就碰撞，如果敌人出生位置与玩家重叠太多并且y太近，可以稍微偏移？但更简单:
+            // 给一个很小的无敌逻辑: 生成在y= -ENEMY_HEIGHT，还没进入画布，足够玩家反应。
+            enemies.push({
+                x: enemyX,
+                y: -ENEMY_HEIGHT - Math.random() * 30, // 从顶外出现，略有随机偏移
+                width: ENEMY_WIDTH,
+                height: ENEMY_HEIGHT,
+                speed: BASE_SPEED + Math.random() * 2.5   // 3.5 ~ 6.0 随机速度
+            });
+        }
+
+        // 碰撞检测 (轴对齐矩形)
+        function rectCollide(r1, r2) {
+            return !(r2.x >= r1.x + r1.width ||
+                r2.x + r2.width <= r1.x ||
+                r2.y >= r1.y + r1.height ||
+                r2.y + r2.height <= r1.y);
+        }
+
+        // 更新逻辑: 移动、碰撞、分数、边界
+        function updateGame() {
+            if (!gameActive) return;
+
+            // 1. 根据按键移动玩家 (左右边界限制)
+            const MOVE_STEP = 6;
+            if (leftPressed) playerX -= MOVE_STEP;
+            if (rightPressed) playerX += MOVE_STEP;
+            // 边界限制 (不能超出画布，也不能太靠边——实际上让车身整体在画布内)
+            if (playerX < 0) playerX = 0;
+            if (playerX + CAR_WIDTH > canvas.width) playerX = canvas.width - CAR_WIDTH;
+
+            // 2. 生成新敌人
+            frameCounter++;
+            if (frameCounter % ENEMY_SPAWN_RATE === 0) {
+                spawnEnemy();
+            }
+
+            // 3. 移动所有敌人 + 检查超出屏幕/得分
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.y += e.speed;
+
+                // 超出屏幕底部 → 加分 (代表成功躲避) 并移除
+                if (e.y > canvas.height) {
+                    enemies.splice(i, 1);
+                    score += 10;
+                    updateScoreDisplay();
+                }
+            }
+
+            // 4. 碰撞检测 (玩家 vs 所有敌人)
+            const playerRect = {
+                x: playerX,
+                y: playerY,
+                width: CAR_WIDTH,
+                height: CAR_HEIGHT
+            };
+
+            for (let e of enemies) {
+                const enemyRect = {
+                    x: e.x,
+                    y: e.y,
+                    width: e.width,
+                    height: e.height
+                };
+                if (rectCollide(playerRect, enemyRect)) {
+                    gameActive = false;
+                    break;
+                }
+            }
+
+            // 可选分数自然增长（随时间）, 增加趣味
+            if (gameActive && frameCounter % 6 === 0) {
+                score += 1;
+                updateScoreDisplay();
+            }
+        }
+
+        // ----- 绘制图形 (带点风格) -----
+        function drawRoad() {
+            // 路面底色
+            ctx.fillStyle = '#263f2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 车道分割线 (虚线)
+            ctx.strokeStyle = '#cbdba7';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([25, 25]);
+            ctx.beginPath();
+            for (let i = 1; i < LANE_COUNT; i++) {
+                let laneX = i * LANE_WIDTH;
+                ctx.moveTo(laneX, 0);
+                ctx.lineTo(laneX, canvas.height);
+            }
+            ctx.stroke();
+
+            // 两侧路肩
+            ctx.setLineDash([]);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#708d62';
+            ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+            // 中间虚线动效 (增加运动感)
+            ctx.beginPath();
+            ctx.strokeStyle = '#e6ffcc';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([20, 10]);
+            ctx.moveTo(0, (frameCounter * 2) % canvas.height);
+            ctx.lineTo(canvas.width, (frameCounter * 2) % canvas.height);
+            ctx.stroke();
+
+            // 重置虚线
+            ctx.setLineDash([]);
+        }
+
+        // 绘制玩家车 (红色小跑车)
+        function drawPlayer() {
+            const x = playerX, y = playerY;
+
+            // 车身
+            ctx.fillStyle = '#d62739';
+            ctx.shadowColor = '#500';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.roundRect(x, y, CAR_WIDTH, CAR_HEIGHT, 12);
+            ctx.fill();
+
+            // 车窗
+            ctx.fillStyle = '#1e2b3c';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.roundRect(x + 6, y - 2, CAR_WIDTH - 12, 22, 8);
+            ctx.fill();
+
+            // 车灯
+            ctx.fillStyle = '#f9e076';
+            ctx.shadowBlur = 15;
+            ctx.fillRect(x + 4, y + CAR_HEIGHT-12, 8, 8);
+            ctx.fillRect(x + CAR_WIDTH-12, y + CAR_HEIGHT-12, 8, 8);
+            // 前灯
+            ctx.fillStyle = '#fcf4d9';
+            ctx.fillRect(x + 4, y + 2, 8, 6);
+            ctx.fillRect(x + CAR_WIDTH-12, y + 2, 8, 6);
+
+            // 轮毂
+            ctx.fillStyle = '#222';
+            ctx.shadowBlur = 5;
+            ctx.fillRect(x - 4, y + 15, 8, 15);
+            ctx.fillRect(x + CAR_WIDTH-4, y + 15, 8, 15);
+            ctx.fillRect(x - 4, y + CAR_HEIGHT-30, 8, 15);
+            ctx.fillRect(x + CAR_WIDTH-4, y + CAR_HEIGHT-30, 8, 15);
+
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
+
+        // 绘制敌方车 (黄褐色，有点锈迹风格)
+        function drawEnemy(e) {
+            ctx.fillStyle = '#c49a6c';
+            ctx.shadowColor = '#3d2b1a';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.roundRect(e.x, e.y, e.width, e.height, 10);
+            ctx.fill();
+
+            // 敌方车窗
+            ctx.fillStyle = '#334e68';
+            ctx.fillRect(e.x + 8, e.y - 2, e.width - 16, 22);
+
+            // 敌方车灯/细节
+            ctx.fillStyle = '#b37b48';
+            ctx.fillRect(e.x + 5, e.y + e.height-12, 8, 8);
+            ctx.fillRect(e.x + e.width-13, e.y + e.height-12, 8, 8);
+
+            // 车顶灯(警用感觉)
+            ctx.fillStyle = '#c92f2f';
+            ctx.fillRect(e.x + 12, e.y - 8, 18, 8);
+            ctx.shadowBlur = 0;
+        }
+
+        // 封装 roundRect 方法
+        CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.moveTo(x + r, y);
+            this.lineTo(x + w - r, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + r);
+            this.lineTo(x + w, y + h - r);
+            this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            this.lineTo(x + r, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - r);
+            this.lineTo(x, y + r);
+            this.quadraticCurveTo(x, y, x + r, y);
+            return this;
+        };
+
+        // 绘制游戏结束遮罩
+        function drawGameOver() {
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = '#1a1f18';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+            ctx.font = 'bold 38px "Courier New", monospace';
+            ctx.fillStyle = '#f5c284';
+            ctx.shadowColor = '#7a3e1a';
+            ctx.shadowBlur = 12;
+            ctx.fillText('撞车了', 55, 300);
+            ctx.font = '22px monospace';
+            ctx.fillStyle = '#d6b389';
+            ctx.fillText('按 [发车] 再来一局', 70, 400);
+            ctx.shadowBlur = 0;
+        }
+
+        // 主动绘制循环
+        function draw() {
+            drawRoad();
+
+            // 绘制所有敌方车
+            for (let e of enemies) {
+                drawEnemy(e);
+            }
+
+            // 玩家车 (在最上层)
+            drawPlayer();
+
+            // 如果游戏结束，在最上层覆盖半透明层
+            if (!gameActive) {
+                drawGameOver();
+            }
+
+            // 小提示：显示速度/气氛
+            ctx.font = 'bold 14px monospace';
+            ctx.fillStyle = '#b4f0b4';
+            ctx.fillText('SPEED', 310, 40);
+            ctx.fillText('↑', 350, 65);
+        }
+
+        // 动画循环
+        function gameLoop() {
+            if (gameActive) {
+                updateGame();
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ---------- 键盘控制 ----------
+        function keydownHandler(e) {
+            const key = e.key;
+            if (key === 'ArrowLeft' || key === 'Left' || key === 'ArrowRight' || key === 'Right') {
+                e.preventDefault(); // 阻止页面滚动
+            }
+            if (!gameActive) return;  // 游戏结束不能移动，但可以按重启
+
+            if (key === 'ArrowLeft' || key === 'Left') {
+                leftPressed = true;
+            } else if (key === 'ArrowRight' || key === 'Right') {
+                rightPressed = true;
+            }
+        }
+
+        function keyupHandler(e) {
+            const key = e.key;
+            if (key === 'ArrowLeft' || key === 'Left') {
+                leftPressed = false;
+                e.preventDefault();
+            } else if (key === 'ArrowRight' || key === 'Right') {
+                rightPressed = false;
+                e.preventDefault();
+            }
+        }
+
+        // 防止页面随着方向键滚动
+        window.addEventListener('keydown', keydownHandler);
+        window.addEventListener('keyup', keyupHandler);
+
+        // 重启按钮
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            resetGame();
+        });
+
+        // 触摸屏也可以禁止页面滚动（针对移动端简单处理）
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        // 启动游戏
+        resetGame();   // 初始状态
+        gameLoop();
+
+        // 焦点丢失时重置按键状态 (避免卡键)
+        window.addEventListener('blur', () => {
+            leftPressed = false;
+            rightPressed = false;
+        });
+
+        // 为canvas加上移动端提示（防止context menu)
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    })();
+</script>
+</body>
+</html>
