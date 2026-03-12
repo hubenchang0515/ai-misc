@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>节拍器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .metronome {
+            background: #34495e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            width: 320px;
+            text-align: center;
+        }
+        /* 摆动动画区域 */
+        .pendulum-container {
+            position: relative;
+            height: 200px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #7f8c8d;
+            overflow: hidden;
+        }
+        
+        /* 🔥 新增：中心线 */
+        .center-line {
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 2px;
+            height: 180px;
+            transform: translateX(-50%);
+            z-index: 1;
+            border-style: dashed;
+            border-width: 0 2px 0 0;
+            border-color: rgba(231, 76, 60, 0.8);
+        }
+
+        .pivot {
+            width: 14px;
+            height: 14px;
+            background: #ecf0f1;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        .arm {
+            width: 6px;
+            height: 180px;
+            background: #bdc3c7;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform-origin: bottom center;
+            margin-left: -3px;
+            transform: rotate(0deg); 
+            z-index: 5;
+            /* 移除了之前的 CSS transition，改用 JS 控制 */
+        }
+        .weight {
+            width: 24px;
+            height: 24px;
+            background: #f1c40f;
+            border-radius: 50%;
+            position: absolute;
+            left: -9px;
+            top: 40px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        /* 控制面板 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .setting {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-top: 10px;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+            font-size: 16px;
+        }
+        /* 节拍指示灯 */
+        .dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #7f8c8d;
+        }
+        .dot.active {
+            background: #3498db;
+            box-shadow: 0 0 10px #3498db;
+        }
+        .dot.active-first {
+            background: #e74c3c;
+            box-shadow: 0 0 10px #e74c3c;
+        }
+        /* 播放按钮 */
+        #playBtn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        #playBtn.playing {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="metronome">
+    <div class="pendulum-container">
+        <div class="center-line"></div>
+        <div class="pivot"></div>
+        <div class="arm" id="arm">
+            <div class="weight"></div>
+        </div>
+    </div>
+
+    <div class="dots" id="dotsContainer"></div>
+
+    <div class="controls">
+        <div class="setting">
+            <label for="bpmSlider">速度 (BPM): <span id="bpmValue">120</span></label>
+        </div>
+        <input type="range" id="bpmSlider" min="40" max="218" value="120">
+        
+        <div class="setting">
+            <label for="beatsInput">每小节拍数:</label>
+            <input type="number" id="beatsInput" min="1" max="12" value="4">
+        </div>
+
+        <button id="playBtn">开 始</button>
+    </div>
+</div>
+
+<script>
+    let audioContext;
+    let isPlaying = false;
+    let beatsPerBar = 4;
+    let bpm = 120;
+    let currentBeat = 0;
+    let nextNoteTime = 0.0;
+    let timerID;
+    let swingRight = true;
+    let currentAnimation = null; // 用于追踪当前动画以便随时取消
+
+    const playBtn = document.getElementById('playBtn');
+    const bpmSlider = document.getElementById('bpmSlider');
+    const bpmValue = document.getElementById('bpmValue');
+    const beatsInput = document.getElementById('beatsInput');
+    const arm = document.getElementById('arm');
+    const dotsContainer = document.getElementById('dotsContainer');
+
+    function initDots() {
+        dotsContainer.innerHTML = '';
+        for (let i = 0; i < beatsPerBar; i++) {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+            dotsContainer.appendChild(dot);
+        }
+    }
+    initDots();
+
+    function updateDots(beat) {
+        const dots = document.querySelectorAll('.dot');
+        dots.forEach(dot => dot.classList.remove('active', 'active-first'));
+        if (dots[beat]) {
+            dots[beat].classList.add(beat === 0 ? 'active-first' : 'active');
+        }
+    }
+
+    // 🔥 重新设计的物理动画逻辑
+    function animateArm() {
+        if (currentAnimation) currentAnimation.cancel();
+
+        const msPerBeat = (60.0 / bpm) * 1000;
+        const angle = 40; // 最大摆动角度
+        
+        // 使用 Web Animations API 精确控制相位：
+        // 关键帧 1 (起点): 0度 (中心线发声时刻) -> 逐渐减速离开中心 (ease-out)
+        // 关键帧 2 (极点): 到达最高点 -> 逐渐加速回落 (ease-in)
+        // 关键帧 3 (终点): 回到 0度 (准备下一次发声)
+        const keyframes = [
+            { transform: 'rotate(0deg)', easing: 'ease-out' },
+            { transform: `rotate(${swingRight ? angle : -angle}deg)`, easing: 'ease-in' },
+            { transform: 'rotate(0deg)' }
+        ];
+
+        currentAnimation = arm.animate(keyframes, {
+            duration: msPerBeat,
+            iterations: 1,
+            fill: 'forwards'
+        });
+        
+        swingRight = !swingRight;
+    }
+
+    function nextNote() {
+        const secondsPerBeat = 60.0 / bpm;
+        nextNoteTime += secondsPerBeat;
+        currentBeat++;
+        if (currentBeat >= beatsPerBar) currentBeat = 0;
+    }
+
+    function scheduleNote(beatNumber, time) {
+        const osc = audioContext.createOscillator();
+        const envelope = audioContext.createGain();
+
+        osc.connect(envelope);
+        envelope.connect(audioContext.destination);
+
+        osc.frequency.value = beatNumber === 0 ? 1000.0 : 700.0; 
+
+        envelope.gain.value = 1;
+        envelope.gain.exponentialRampToValueAtTime(1, time + 0.001);
+        envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+        osc.start(time);
+        osc.stop(time + 0.05);
+
+        const timeUntilPlay = (time - audioContext.currentTime) * 1000;
+        
+        // 确保动画和声音在经过中心线的那一毫秒精确同步触发
+        setTimeout(() => {
+            updateDots(beatNumber);
+            animateArm();
+        }, Math.max(0, timeUntilPlay));
+    }
+
+    function scheduler() {
+        while (nextNoteTime < audioContext.currentTime + 0.1) {
+            scheduleNote(currentBeat, nextNoteTime);
+            nextNote();
+        }
+        timerID = setTimeout(scheduler, 25.0);
+    }
+
+    playBtn.addEventListener('click', () => {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        isPlaying = !isPlaying;
+
+        if (isPlaying) {
+            if (audioContext.state === 'suspended') audioContext.resume();
+            currentBeat = 0;
+            nextNoteTime = audioContext.currentTime + 0.05;
+            swingRight = true;
+            scheduler();
+            playBtn.textContent = "停 止";
+            playBtn.classList.add('playing');
+        } else {
+            clearTimeout(timerID);
+            if (currentAnimation) currentAnimation.cancel();
+            playBtn.textContent = "开 始";
+            playBtn.classList.remove('playing');
+            arm.style.transform = 'rotate(0deg)'; // 停止时立刻回到中心线
+            updateDots(-1);
+        }
+    });
+
+    bpmSlider.addEventListener('input', (e) => {
+        bpm = parseInt(e.target.value);
+        bpmValue.textContent = bpm;
+    });
+
+    beatsInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (val < 1) val = 1;
+        if (val > 12) val = 12;
+        beatsPerBar = val;
+        e.target.value = val;
+        initDots();
+        if (currentBeat >= beatsPerBar) currentBeat = 0;
+    });
+</script>
+
+</body>
+</html>
