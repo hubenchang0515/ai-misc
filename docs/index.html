@@ -151,12 +151,12 @@
         }
 
         /* 缩略图模拟 —— 实际使用时替换为真实图片 */
-        .card-img[data-img="1"] { background-image: linear-gradient(135deg, #3b7990, #6ea9c7), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDNoMTh2MThIM3oiLz48cGF0aCBkPSJNMjEgMjFMMTUgMTUiLz48L3N2Zz4='); background-blend-mode: overlay; background-size: 80px, cover; }
-        .card-img[data-img="2"] { background-image: linear-gradient(145deg, #3f6288, #7b9ec7), radial-gradient(circle at 30% 50%, #ffffff50 0%, transparent 40%); }
-        .card-img[data-img="3"] { background-image: linear-gradient(112deg, #4f657b, #a2bed9), repeating-linear-gradient(45deg, #fff1 0px, #fff1 8px, transparent 8px, transparent 16px); }
-        .card-img[data-img="4"] { background: #2c5777 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZmZmZmZmMjAiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+') center/40px no-repeat, #305e81; }
-        .card-img[data-img="5"] { background-image: linear-gradient(145deg, #2d5f6e, #96b9d2), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAyTDggNkg0djEwaDE2VjZoLTQiLz48cGF0aCBkPSJNMTYgMTBIMTJWMTZIMTZWMTBaIi8+PC9zdmc+'); background-blend-mode: soft-light; background-size: 70px, cover; }
-        .card-img[data-img="6"] { background: #446688 radial-gradient(circle at 70% 20%, #f5f9ff80 0%, transparent 60%); }
+        .card:nth-child(6n+1) .card-img { background-image: linear-gradient(135deg, #3b7990, #6ea9c7), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDNoMTh2MThIM3oiLz48cGF0aCBkPSJNMjEgMjFMMTUgMTUiLz48L3N2Zz4='); background-blend-mode: overlay; background-size: 80px, cover; }
+        .card:nth-child(6n+2) .card-img { background-image: linear-gradient(145deg, #3f6288, #7b9ec7), radial-gradient(circle at 30% 50%, #ffffff50 0%, transparent 40%); }
+        .card:nth-child(6n+3) .card-img { background-image: linear-gradient(112deg, #4f657b, #a2bed9), repeating-linear-gradient(45deg, #fff1 0px, #fff1 8px, transparent 8px, transparent 16px); }
+        .card:nth-child(6n+4) .card-img { background: #2c5777 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZmZmZmZmMjAiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+') center/40px no-repeat, #305e81; }
+        .card:nth-child(6n+5) .card-img { background-image: linear-gradient(145deg, #2d5f6e, #96b9d2), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAyTDggNkg0djEwaDE2VjZoLTQiLz48cGF0aCBkPSJNMTYgMTBIMTJWMTZIMTZWMTBaIi8+PC9zdmc+'); background-blend-mode: soft-light; background-size: 70px, cover; }
+        .card:nth-child(6n) .card-img { background: #446688 radial-gradient(circle at 70% 20%, #f5f9ff80 0%, transparent 60%); }
 
         .card-content {
             padding: 1.4rem 1.4rem 1.6rem;
@@ -279,7 +279,7 @@
         <!-- 作品网格卡片列表 -->
         <div class="grid">
             <div class="card">
-                <div class="card-img" data-img="1"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">四则运算·练习 <span class="card-year">2025</span></div>
                     <div class="card-desc">随机生成若干 100 以内的四则运算练习题，限时完成答题。</div>
@@ -292,7 +292,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="2"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">base32/base64 · 编解码 <span class="card-year">2026</span></div>
                     <div class="card-desc">节流互转，双向实时操作。</div>
@@ -305,7 +305,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="3"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">表情包 · 裁剪分割 <span class="card-year">2025</span></div>
                     <div class="card-desc">手动调整边缘裁剪值去除空白边距，然后按网格进行拆分。</div>
@@ -317,7 +317,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="4"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">课程表 · 制作/打印 <span class="card-year">2025</span></div>
                     <div class="card-desc">将课程拖入单元格，也可以点击单元格直接编辑。</div>
@@ -329,7 +329,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="4"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">画图 <span class="card-year">2025</span></div>
                     <div class="card-desc">适合从简单涂鸦到复杂几何绘制的各种场景，既可作为教学演示，也可用于日常快速绘图需求。</div>
@@ -342,7 +342,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="5"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">五子棋 · AI <span class="card-year">2025</span></div>
                     <div class="card-desc">博弈树的 AI 五子棋游戏。</div>
@@ -355,7 +355,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="6"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">Linux 命令 · 速查 <span class="card-year">2026</span></div>
                     <div class="card-desc">输入 Linux 命令，快速跳转到中文文档。</div>
@@ -368,7 +368,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="6"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">节拍器 <span class="card-year">2026</span></div>
                     <div class="card-desc">一个简单实用的音乐练习工具，它能够产生稳定的节拍声音，帮助音乐学习者保持准确的节奏感。</div>
@@ -381,7 +381,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="6"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">扫雷 <span class="card-year">2026</span></div>
                     <div class="card-desc">如果你成功找出了所有地雷，并翻开所有非雷格子，即为胜利。</div>
@@ -394,7 +394,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="1"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">二维码 · 生成/解析 <span class="card-year">2026</span></div>
                     <div class="card-desc">二维码实时生成 · 上传识别。</div>
@@ -406,7 +406,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="2"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">赛车 · 躲开车流 <span class="card-year">2026</span></div>
                     <div class="card-desc">操纵汽车躲开车辆，尽可能开得更远。</div>
@@ -419,7 +419,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="2"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">贪吃蛇 <span class="card-year">2025</span></div>
                     <div class="card-desc">控制蛇吃到食物，每吃到一个食物蛇身就会变长，小心不要撞到墙壁或自己的身体。</div>
@@ -432,7 +432,7 @@
             </div>
 
             <div class="card">
-                <div class="card-img" data-img="3"></div>
+                <div class="card-img" ></div>
                 <div class="card-content">
                     <div class="card-title">俄罗斯方块 <span class="card-year">2025</span></div>
                     <div class="card-desc">使用方向键移动和旋转方块，空格键快速下落，看看你能得多少分！。</div>
