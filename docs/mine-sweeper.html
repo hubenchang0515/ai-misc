@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>网页扫雷</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+        }
+        body {
+            margin-top: 50px;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .controls input {
+            width: 50px;
+            margin-right: 5px;
+        }
+        #board {
+            display: grid;
+            gap: 1px;
+            background-color: #999;
+            border: 2px solid #666;
+            user-select: none;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: inset -2px -2px 0px #999, inset 2px 2px 0px #fff;
+        }
+        .cell:active {
+            box-shadow: inset 1px 1px 2px #999;
+        }
+        .cell.revealed {
+            background-color: #eee;
+            box-shadow: none;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        .cell.mine {
+            background-color: red;
+        }
+        #status {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        /* 数字颜色 */
+        .val-1 { color: blue; }
+        .val-2 { color: green; }
+        .val-3 { color: red; }
+        .val-4 { color: darkblue; }
+        .val-5 { color: brown; }
+        .val-6 { color: cyan; }
+        .val-7 { color: black; }
+        .val-8 { color: gray; }
+    </style>
+</head>
+<body>
+    <h1>扫雷</h1>
+    <p><a style="color: #bdc3c7; text-decoration: none;" href="https://xplanc.org/primers/document/zh/03.HTML/90.实践案例/AI.扫雷.md">获取源码</a></p>
+    <div class="controls">
+        <label>行数: <input type="number" id="rows" value="10" min="5" max="30"></label>
+        <label>列数: <input type="number" id="cols" value="10" min="5" max="30"></label>
+        <label>雷数: <input type="number" id="mines" value="10" min="1"></label>
+    </div>
+
+    <button onclick="initGame()">开始新游戏</button>
+    <div id="board"></div>
+    <div id="status"></div>
+
+    <script>
+        let board = [];
+        let rows = 10, cols = 10, totalMines = 10;
+        let isFirstClick = true;
+        let gameOver = false;
+        let revealedCells = 0;
+
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+
+        // 初始化游戏
+        function initGame() {
+            rows = parseInt(document.getElementById('rows').value);
+            cols = parseInt(document.getElementById('cols').value);
+            totalMines = parseInt(document.getElementById('mines').value);
+
+            // 输入合法性校验
+            if (totalMines >= rows * cols) {
+                totalMines = rows * cols - 1;
+                document.getElementById('mines').value = totalMines;
+                alert('雷数不能大于或等于总格子数，已自动调整。');
+            }
+
+            boardElement.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+            boardElement.innerHTML = '';
+            statusElement.innerText = '';
+            statusElement.style.color = '#333';
+            
+            board = [];
+            isFirstClick = true;
+            gameOver = false;
+            revealedCells = 0;
+
+            // 创建网格数据和DOM元素
+            for (let r = 0; r < rows; r++) {
+                let row = [];
+                for (let c = 0; c < cols; c++) {
+                    row.push({
+                        isMine: false,
+                        isRevealed: false,
+                        isFlagged: false,
+                        neighborMines: 0,
+                        element: null
+                    });
+
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    // 阻止右键菜单
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleRightClick(r, c);
+                    });
+                    cell.addEventListener('click', () => handleLeftClick(r, c));
+                    
+                    boardElement.appendChild(cell);
+                    row[c].element = cell;
+                }
+                board.push(row);
+            }
+        }
+
+        // 放置地雷（避开第一次点击的位置）
+        function placeMines(firstRow, firstCol) {
+            let minesPlaced = 0;
+            while (minesPlaced < totalMines) {
+                let r = Math.floor(Math.random() * rows);
+                let c = Math.floor(Math.random() * cols);
+
+                // 如果当前位置不是雷，且不是玩家第一次点击的位置，则放置雷
+                if (!board[r][c].isMine && !(r === firstRow && c === firstCol)) {
+                    board[r][c].isMine = true;
+                    minesPlaced++;
+                }
+            }
+            calculateNeighbors();
+        }
+
+        // 计算每个格子周围的雷数
+        function calculateNeighbors() {
+            const directions = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1],           [0, 1],
+                [1, -1],  [1, 0],  [1, 1]
+            ];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (board[r][c].isMine) continue;
+                    let count = 0;
+                    for (let [dr, dc] of directions) {
+                        let nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc].isMine) {
+                            count++;
+                        }
+                    }
+                    board[r][c].neighborMines = count;
+                }
+            }
+        }
+
+        // 处理左键点击
+        function handleLeftClick(r, c) {
+            if (gameOver || board[r][c].isFlagged || board[r][c].isRevealed) return;
+
+            // 核心逻辑：第一次点击时才布雷
+            if (isFirstClick) {
+                placeMines(r, c);
+                isFirstClick = false;
+            }
+
+            revealCell(r, c);
+            checkWin();
+        }
+
+        // 处理右键点击（插旗）
+        function handleRightClick(r, c) {
+            if (gameOver || board[r][c].isRevealed) return;
+
+            let cellData = board[r][c];
+            cellData.isFlagged = !cellData.isFlagged;
+            cellData.element.innerText = cellData.isFlagged ? '🚩' : '';
+        }
+
+        // 展开格子
+        function revealCell(r, c) {
+            let cellData = board[r][c];
+            
+            if (cellData.isRevealed || cellData.isFlagged) return;
+            
+            cellData.isRevealed = true;
+            cellData.element.classList.add('revealed');
+            revealedCells++;
+
+            if (cellData.isMine) {
+                // 踩雷了
+                cellData.element.innerText = '💣';
+                cellData.element.classList.add('mine');
+                triggerGameOver(false);
+                return;
+            }
+
+            if (cellData.neighborMines > 0) {
+                // 显示数字
+                cellData.element.innerText = cellData.neighborMines;
+                cellData.element.classList.add(`val-${cellData.neighborMines}`);
+            } else {
+                // 如果是0，使用泛洪算法（Flood Fill）递归展开周围的格子
+                const directions = [
+                    [-1, -1], [-1, 0], [-1, 1],
+                    [0, -1],           [0, 1],
+                    [1, -1],  [1, 0],  [1, 1]
+                ];
+                for (let [dr, dc] of directions) {
+                    let nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                        revealCell(nr, nc);
+                    }
+                }
+            }
+        }
+
+        // 检查是否胜利
+        function checkWin() {
+            if (gameOver) return;
+            if (revealedCells === (rows * cols) - totalMines) {
+                triggerGameOver(true);
+            }
+        }
+
+        // 游戏结束处理
+        function triggerGameOver(isWin) {
+            gameOver = true;
+            if (isWin) {
+                statusElement.innerText = '🎉 恭喜你，排雷成功！';
+                statusElement.style.color = 'green';
+            } else {
+                statusElement.innerText = '💥 游戏结束，你踩到雷了！';
+                statusElement.style.color = 'red';
+                // 显示所有地雷
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        if (board[r][c].isMine) {
+                            board[r][c].element.innerText = '💣';
+                            board[r][c].element.classList.add('revealed');
+                        }
+                    }
+                }
+            }
+        }
+
+        // 页面加载完毕后初始化
+        window.onload = initGame;
+    </script>
+</body>
+</html>
