@@ -15,3 +15,4 @@ AI 生成的一些乱七八糟的应用
 * [赛车](https://misc.xplanc.org/race)
 * [贪吃蛇](https://misc.xplanc.org/snake)
 * [俄罗斯方块](https://misc.xplanc.org/tetris)
+* [艺术字图片生成](https://misc.xplanc.org/text-img)

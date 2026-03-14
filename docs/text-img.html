@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多图层艺术字生成器</title>
+    <style>
+        /* 全局与布局样式 */
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background-color: #f4f7f6; 
+            color: #333; 
+            margin: 0; 
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #2c3e50; margin-bottom: 20px; text-align: center; }
+
+        /* 顶部全局控制与画布区 */
+        .top-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+        
+        .global-controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            align-items: center;
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        canvas { 
+            background: #ffffff; 
+            border: 2px dashed #bdc3c7; 
+            border-radius: 8px; 
+            max-width: 100%; 
+        }
+
+        /* 图层列表区 */
+        #layersContainer {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 单个图层卡片样式 */
+        .layer-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 5px solid #3498db;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            align-items: end;
+            position: relative;
+        }
+
+        .layer-header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+        }
+
+        .layer-title { font-weight: bold; color: #3498db; }
+        
+        /* 表单控件样式 */
+        .control-group { display: flex; flex-direction: row; align-items: center; }
+        label { font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+        input[type="text"], input[type="number"], select { 
+            padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; 
+        }
+        input[type="color"] { border: none; height: 32px; cursor: pointer; border-radius: 4px; padding: 0;}
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        /* 按钮样式 */
+        button { 
+            background-color: #3498db; color: white; border: none; padding: 10px 20px; 
+            font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; 
+            transition: 0.2s; 
+        }
+        button:hover { background-color: #2980b9; }
+        button.danger { background-color: #e74c3c; padding: 6px 12px; font-size: 12px;}
+        button.danger:hover { background-color: #c0392b; }
+        button.success { background-color: #2ecc71; }
+        button.success:hover { background-color: #27ae60; }
+
+        .flex-row { display: flex; align-items: center; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>✨ 高级多图层艺术字生成器</h1>
+
+    <div class="top-section">
+        <div class="global-controls">
+            <div class="flex-row">
+                <label for="globalBgColor">背景：</label>
+                <input type="color" id="globalBgColor" value="#E3F2FD"></input>
+            </div>
+            <div class="flex-row">
+                <button id="addLayerBtn">+ 新增文字组</button>
+                <button class="success" id="downloadBtn">⬇️ 下载高清图片</button>
+            </div>
+        </div>
+        <canvas id="textCanvas" width="512" height="512"></canvas>
+    </div>
+
+    <div id="layersContainer"></div>
+
+    <script>
+        const canvas = document.getElementById('textCanvas');
+        const ctx = canvas.getContext('2d');
+        const globalBgColor = document.getElementById('globalBgColor');
+        const layersContainer = document.getElementById('layersContainer');
+
+        // 核心状态：存储所有文字组的数据
+        let layers = [];
+        let layerIdCounter = 0;
+
+        // 初始化：添加第一个默认文字组
+        addLayer("你好，世界！", 256, 256, 50, "#FF5722");
+
+        // 监听全局背景色变化
+        globalBgColor.addEventListener('input', drawCanvas);
+        
+        // 绑定新增与下载按钮
+        document.getElementById('addLayerBtn').addEventListener('click', () => addLayer("新艺术字", 256, 256, 24, "#9b59b6"));
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = '多图层艺术字.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        /**
+         * 1. 数据驱动：添加新图层数据
+         */
+        function addLayer(text, x, y, size, color) {
+            layerIdCounter++;
+            const newLayer = {
+                id: layerIdCounter,
+                text: text,
+                font: 'sans-serif',
+                size: size,
+                x: x,          // X 坐标
+                y: y,          // Y 坐标
+                color: color,
+                stroke: '#FFFFFF',
+                shadow: '#333333'
+            };
+            layers.push(newLayer);
+            renderLayersUI(); // 更新UI面板
+            drawCanvas();     // 更新画布
+        }
+
+        /**
+         * 2. 数据驱动：删除图层数据
+         */
+        function deleteLayer(id) {
+            layers = layers.filter(layer => layer.id !== id);
+            renderLayersUI();
+            drawCanvas();
+        }
+
+        /**
+         * 3. UI渲染：根据 layers 数组动态生成控制面板
+         */
+        function renderLayersUI() {
+            layersContainer.innerHTML = ''; // 清空现有面板
+
+            layers.forEach((layer, index) => {
+                const card = document.createElement('div');
+                card.className = 'layer-card';
+                
+                // 构建单个图层的 HTML 结构 (使用模板字符串)
+                card.innerHTML = `
+                    <div class="layer-header">
+                        <span class="layer-title">文字组 ${index + 1}</span>
+                        <button class="danger" onclick="deleteLayer(${layer.id})">删除此组</button>
+                    </div>
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label>内容：</label>
+                        <input type="text" value="${layer.text}" oninput="updateLayer(${layer.id}, 'text', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>字体风格：</label>
+                        <select onchange="updateLayer(${layer.id}, 'font', this.value)">
+                            <option value="sans-serif" ${layer.font === 'sans-serif' ? 'selected' : ''}>现代黑体</option>
+                            <option value="serif" ${layer.font === 'serif' ? 'selected' : ''}>经典宋体</option>
+                            <option value="cursive" ${layer.font === 'cursive' ? 'selected' : ''}>手写连笔</option>
+                            <option value="fantasy" ${layer.font === 'fantasy' ? 'selected' : ''}>夸张艺术</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>大小 (px)：</label>
+                        <input type="number" value="${layer.size}" oninput="updateLayer(${layer.id}, 'size', this.value)">
+                    </div>
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label>X 坐标 (左右)：${layer.x}</label>
+                        <input type="range" min="0" max="${canvas.width}" value="${layer.x}" oninput="updateLayer(${layer.id}, 'x', this.value); this.previousElementSibling.innerText = 'X 坐标 (左右)：' + this.value">
+                    </div>
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label>Y 坐标 (上下)：${layer.y}</label>
+                        <input type="range" min="0" max="${canvas.height}" value="${layer.y}" oninput="updateLayer(${layer.id}, 'y', this.value); this.previousElementSibling.innerText = 'Y 坐标 (上下)：' + this.value">
+                    </div>
+                    <br/>
+                    <div class="control-group">
+                        <label>主色：</label>
+                        <input type="color" value="${layer.color}" oninput="updateLayer(${layer.id}, 'color', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>描边：</label>
+                        <input type="color" value="${layer.stroke}" oninput="updateLayer(${layer.id}, 'stroke', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>阴影：</label>
+                        <input type="color" value="${layer.shadow}" oninput="updateLayer(${layer.id}, 'shadow', this.value)">
+                    </div>
+                `;
+                layersContainer.appendChild(card);
+            });
+        }
+
+        /**
+         * 4. 状态更新：处理输入框的值改变
+         */
+        window.updateLayer = function(id, key, value) {
+            const layer = layers.find(l => l.id === id);
+            if (layer) {
+                // 如果是数字类型的属性，转换一下格式
+                layer[key] = (key === 'size' || key === 'x' || key === 'y') ? Number(value) : value;
+                drawCanvas(); // 数据改变后重新绘制画布
+            }
+        }
+
+        /**
+         * 5. 核心渲染：遍历所有图层并绘制到画布上
+         */
+        function drawCanvas() {
+            // 清空并填充全局背景
+            ctx.fillStyle = globalBgColor.value;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 按照数组顺序（图层顺序）绘制每个文字组
+            layers.forEach(layer => {
+                if (!layer.text) return; // 空文本不渲染
+
+                // 设置字体
+                ctx.font = `bold ${layer.size}px ${layer.font}`;
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center'; // 以 X,Y 为中心点绘制
+
+                
+                // 绘制描边 (关闭阴影避免描边脏乱)
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+                ctx.lineWidth = layer.size * 0.04; // 描边粗细随字体大小自适应
+                ctx.strokeStyle = layer.stroke;
+                ctx.strokeText(layer.text, layer.x, layer.y);
+
+                // 绘制阴影 (仅在绘制填充文字时生效)
+                ctx.shadowColor = layer.shadow;
+                ctx.shadowBlur = layer.size * 0.1; // 阴影模糊度随字体大小变化
+                ctx.shadowOffsetX = layer.size * 0.08;
+                ctx.shadowOffsetY = layer.size * 0.08;
+                
+
+                // 绘制主文字
+                ctx.fillStyle = layer.color;
+                ctx.fillText(layer.text, layer.x, layer.y);
+
+            });
+        }
+
+    </script>
+</body>
+</html>
