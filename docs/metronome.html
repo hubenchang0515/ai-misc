@@ -162,7 +162,8 @@
 
         <div class="controls">
             <div class="setting">
-                <label for="bpmSlider">速度 (BPM): <span id="bpmValue">120</span></label>
+                <label for="bpmSlider">速度 (BPM): </label>
+                <input type="number" id="bpmValue" min="1" max="240" value="120">
             </div>
             <input type="range" id="bpmSlider" min="1" max="240" value="120">
             
@@ -305,8 +306,16 @@
 
         bpmSlider.addEventListener('input', (e) => {
             bpm = parseInt(e.target.value);
-            bpmValue.textContent = bpm;
+            bpmValue.value = bpm;
         });
+
+        bpmValue.addEventListener('input', (e) =>{
+            let val = parseInt(e.target.value);
+            if (val < 1) val = 1;
+            if (val > 240) val = 240;
+            bpm = val;
+            bpmSlider.value = val;
+        })
 
         beatsInput.addEventListener('change', (e) => {
             let val = parseInt(e.target.value);
