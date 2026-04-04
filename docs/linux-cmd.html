@@ -59,7 +59,7 @@
                 const response = await fetch('https://xplanc.org/primers/sitemap.xml');
                 if (response.ok) {
                     const data = await response.text();
-                    cmds = [...data.matchAll(/https:\/\/xplanc\.org\/primers\/document\/zh\/10\.Bash\/90\.%E5%B8%AE%E5%8A%A9%E6%89%8B%E5%86%8C\/EX\.(.*?)\.md/g)];
+                cmds = [...data.matchAll(/https:\/\/xplanc\.org\/primers\/document\/zh\/10\.Bash\/90\.%E5%B8%AE%E5%8A%A9%E6%89%8B%E5%86%8C\/EX\.(.*?)\.md/g)].map(i=>[i[0], decodeURIComponent(i[1])]);
                 }
             }
 
