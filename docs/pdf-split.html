@@ -296,14 +296,17 @@
                     Title: PDFHexString.fromText(item.title),
                     Parent: parentRef
                 });
+                
+                addLog(`创建书签 '${item.title}' ${item.originIdx} --> ${item.pageIdx}`, "meta");
 
                 // 设置跳转目标
                 if (item.pageIdx >= 0 && item.pageIdx < pageRefs.length) {
                     const destArray = PDFArray.withContext(context);
-                    destArray.push(pageRefs[item.pageIdx]);
+                    const page = pdfDoc.getPage(item.pageIdx)
+                    destArray.push(page.ref);
                     destArray.push(PDFName.of('XYZ'));
                     destArray.push(PDFNumber.of(0)); // left
-                    destArray.push(PDFNumber.of(0)); // top
+                    destArray.push(PDFNumber.of(page.getSize().height)); // top
                     destArray.push(PDFNumber.of(0)); // zoom
                     itemDict.set(PDFName.of('Dest'), destArray);
                 }
@@ -359,7 +362,8 @@
     function filterAndOffsetOutline(items, start, end) {
         return items.map(item => ({
             ...item,
-            pageIdx: item.pageIdx - start - 1,
+            originIdx: item.pageIdx,
+            pageIdx: item.pageIdx - start,
             children: filterAndOffsetOutline(item.children, start, end)
         })).filter(item => (item.pageIdx >= 0 && item.pageIdx <= (end-start)) || item.children.length > 0);
     }
