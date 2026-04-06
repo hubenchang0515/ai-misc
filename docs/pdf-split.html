@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced PDF Splitter | 智能书签重构版</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-main: #1e293b;
+            --log-bg: #0f172a;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { margin: 0; color: var(--primary); font-size: 28px; }
+        header p { color: #64748b; margin-top: 8px; }
+
+        /* 拖拽区域 */
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f1f5f9;
+            cursor: pointer;
+            margin-bottom: 25px;
+        }
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: var(--primary);
+            background: #eef2ff;
+        }
+        .drop-zone p { margin: 0; font-size: 16px; color: #475569; }
+        .drop-zone b { color: var(--primary); }
+
+        .settings {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 25px;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-weight: 600; font-size: 14px; color: #475569; }
+        input[type="number"] {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: ring 0.2s;
+        }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+
+        /* 日志区域 */
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+        .log-container {
+            background: var(--log-bg);
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            height: 350px;
+            overflow-y: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .log-line { border-bottom: 1px solid #1e293b; padding: 4px 0; }
+        .log-info { color: #38bdf8; }
+        .log-success { color: #4ade80; }
+        .log-warn { color: #fbbf24; }
+        .log-debug { color: #94a3b8; }
+        .log-meta { color: #f472b6; }
+
+        /* 隐藏原生 Input */
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="card">
+        <header>
+            <h1>PDF 智能拆分工具</h1>
+            <p>纯浏览器本地处理，通过 PDFDict 重构保留书签映射</p>
+        </header>
+
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <p id="fileName">拖拽 PDF 文件至此 或 <b>点击上传</b></p>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <div class="settings">
+            <div class="input-group">
+                <label>每部分拆分页数</label>
+                <input type="number" id="chunkSize" value="100" min="1">
+            </div>
+            <button id="startBtn" onclick="executeTask()">
+                <span>开始执行拆分</span>
+            </button>
+        </div>
+
+        <div class="log-header">
+            <label>执行日志</label>
+            <span id="progressLabel" style="font-size: 12px; color: var(--primary);"></span>
+        </div>
+        <div class="log-container" id="logBox">
+            <div class="log-line log-debug">系统就绪，等待上传文件...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { PDFDocument, PDFName, PDFHexString, PDFNumber, PDFDict, PDFArray } = PDFLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const logBox = document.getElementById('logBox');
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const startBtn = document.getElementById('startBtn');
+
+    // --- UI 逻辑 ---
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+        dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+    });
+
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('drag-over'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        dropZone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        fileInput.files = files;
+        if (files.length) handleFileSelect(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) handleFileSelect(e.target.files[0]);
+    });
+
+    function handleFileSelect(file) {
+        document.getElementById('fileName').innerHTML = `已选择: <b>${file.name}</b> (${(file.size/1024/1024).toFixed(2)} MB)`;
+        addLog(`文件读取就绪: ${file.name}`, 'info');
+    }
+
+    function addLog(msg, type = 'debug') {
+        const div = document.createElement('div');
+        div.className = `log-line log-${type}`;
+        const time = new Date().toLocaleTimeString([], { hour12: false });
+        div.innerHTML = `<span style="opacity:0.5">[${time}]</span> ${msg}`;
+        logBox.appendChild(div);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // --- 核心业务逻辑 ---
+    async function executeTask() {
+        const file = fileInput.files[0];
+        const chunkSize = parseInt(document.getElementById('chunkSize').value);
+        if (!file) return alert("请先上传 PDF");
+
+        startBtn.disabled = true;
+        logBox.innerHTML = '';
+        addLog("启动 PDF 任务流...", "info");
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // 1. 书签解析阶段
+            addLog("正在扫描 PDF 逻辑结构 (Catalog / Outlines)...", "info");
+            const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+            const fullOutline = await getFullOutline(pdfjsDoc);
+            addLog(`解析完成。总书签节点数: ${countNodes(fullOutline)}`, "success");
+
+            // 2. 加载文档阶段
+            const srcDoc = await PDFDocument.load(arrayBuffer);
+            const totalPages = srcDoc.getPageCount();
+            const partsTotal = Math.ceil(totalPages / chunkSize);
+            addLog(`文档分析: 共 ${totalPages} 页，预计拆分为 ${partsTotal} 部分`, "meta");
+
+            // 3. 循环执行拆分
+            for (let i = 0; i < partsTotal; i++) {
+                const startIdx = i * chunkSize;
+                const endIdx = Math.min(startIdx + chunkSize, totalPages) - 1;
+                const partName = `${file.name.replace('.pdf','')}_part${i+1}.pdf`;
+
+                addLog(`-----------------------------------`, "debug");
+                addLog(`正在生成 Part ${i+1}: 页码范围 [${startIdx + 1} - ${endIdx + 1}]`, "info");
+
+                const newDoc = await PDFDocument.create();
+                const pageIndices = Array.from({ length: endIdx - startIdx + 1 }, (_, k) => startIdx + k);
+                
+                addLog(`正在复制对象数据 (Pages ${pageIndices.length} 张)...`, "debug");
+                const copiedPages = await newDoc.copyPages(srcDoc, pageIndices);
+                copiedPages.forEach(p => newDoc.addPage(p));
+
+                // 4. 书签映射与字典重组
+                const partOutline = filterAndOffsetOutline(fullOutline, startIdx, endIdx);
+                if (partOutline.length > 0) {
+                    addLog(`正在重组 PDFDict。检测到此段落关联书签 ${countNodes(partOutline)} 个`, "meta");
+                    injectOutlines(newDoc, partOutline);
+                    addLog(`书签指针重定向成功。`, "success");
+                } else {
+                    addLog(`当前范围内无书签数据。`, "debug");
+                }
+
+                // 5. 序列化与导出
+                addLog(`正在进行增量压缩并序列化字节流...`, "debug");
+                const pdfBytes = await newDoc.save();
+                saveAs(pdfBytes, partName);
+                addLog(`Part ${i+1} 下载任务已发起。`, "success");
+                
+                document.getElementById('progressLabel').innerText = `已完成: ${i+1} / ${partsTotal}`;
+            }
+
+            addLog("所有操作已成功执行。", "success");
+
+        } catch (err) {
+            addLog(`致命错误: ${err.message}`, "warn");
+            console.error(err);
+        } finally {
+            startBtn.disabled = false;
+        }
+    }
+
+    // --- 高级 PDF 字典构建函数 ---
+    function injectOutlines(pdfDoc, outlineData) {
+        const context = pdfDoc.context;
+        const pageRefs = pdfDoc.getPages().map(p => p.ref);
+
+        const outlinesDict = context.obj({
+            Type: PDFName.of('Outlines'),
+            Count: PDFNumber.of(countNodes(outlineData))
+        });
+        const outlinesDictRef = context.register(outlinesDict);
+
+        function createTree(items, parentRef) {
+            let firstRef, lastRef, prevRef;
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const itemDict = context.obj({
+                    Title: PDFHexString.fromText(item.title),
+                    Parent: parentRef
+                });
+
+                // 设置跳转目标
+                if (item.pageIdx >= 0 && item.pageIdx < pageRefs.length) {
+                    const destArray = PDFArray.withContext(context);
+                    destArray.push(pageRefs[item.pageIdx]);
+                    destArray.push(PDFName.of('XYZ'));
+                    destArray.push(PDFNumber.of(0)); // left
+                    destArray.push(PDFNumber.of(0)); // top
+                    destArray.push(PDFNumber.of(0)); // zoom
+                    itemDict.set(PDFName.of('Dest'), destArray);
+                }
+
+                const itemRef = context.register(itemDict);
+                if (i === 0) firstRef = itemRef;
+                lastRef = itemRef;
+
+                if (prevRef) {
+                    context.lookup(prevRef).set(PDFName.of('Next'), itemRef);
+                    itemDict.set(PDFName.of('Prev'), prevRef);
+                }
+
+                if (item.children && item.children.length > 0) {
+                    const childResult = createTree(item.children, itemRef);
+                    itemDict.set(PDFName.of('First'), childResult.first);
+                    itemDict.set(PDFName.of('Last'), childResult.last);
+                    itemDict.set(PDFName.of('Count'), PDFNumber.of(countNodes(item.children)));
+                }
+                prevRef = itemRef;
+            }
+            return { first: firstRef, last: lastRef };
+        }
+
+        const rootTree = createTree(outlineData, outlinesDictRef);
+        outlinesDict.set(PDFName.of('First'), rootTree.first);
+        outlinesDict.set(PDFName.of('Last'), rootTree.last);
+
+        pdfDoc.catalog.set(PDFName.of('Outlines'), outlinesDictRef);
+    }
+
+    // --- 辅助工具函数 ---
+    async function getFullOutline(pdfjsDoc) {
+        const outline = await pdfjsDoc.getOutline();
+        if (!outline) return [];
+        async function traverse(items) {
+            const res = [];
+            for (const item of items) {
+                let pIdx = -1;
+                try {
+                    if (item.dest) {
+                        const d = typeof item.dest === 'string' ? await pdfjsDoc.getDestination(item.dest) : item.dest;
+                        pIdx = await pdfjsDoc.getPageIndex(d[0]);
+                    }
+                } catch(e) {}
+                res.push({ title: item.title, pageIdx: pIdx, children: item.items ? await traverse(item.items) : [] });
+            }
+            return res;
+        }
+        return traverse(outline);
+    }
+
+    function filterAndOffsetOutline(items, start, end) {
+        return items.map(item => ({
+            ...item,
+            pageIdx: item.pageIdx - start - 1,
+            children: filterAndOffsetOutline(item.children, start, end)
+        })).filter(item => (item.pageIdx >= 0 && item.pageIdx <= (end-start)) || item.children.length > 0);
+    }
+
+    function countNodes(items) {
+        let count = items.length;
+        items.forEach(i => count += countNodes(i.children));
+        return count;
+    }
+
+    function saveAs(bytes, name) {
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+    }
+</script>
+</body>
+</html>

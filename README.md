@@ -11,6 +11,7 @@ AI 生成的一些乱七八糟的应用
 * [Linux 命令搜索](https://misc.xplanc.org/linux-cmd)
 * [节拍器](https://misc.xplanc.org/metronome)
 * [扫雷](https://misc.xplanc.org/mine-sweeper)
+* [PDF 拆分](https://misc.xplanc.org/pdf-split)
 * [PDF 转图片](https://misc.xplanc.org/pdf-to-png)
 * [PDF 浏览](https://misc.xplanc.org/pdf-view)
 * [二维码生成与解析](https://misc.xplanc.org/qrcode)
