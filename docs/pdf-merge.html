@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF 智能拼接 | 拖拽排序终极版</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --log-bg: #1e293b; --accent: #10b981; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
+        .container { max-width: 850px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        /* 拖拽上传区 */
+        .drop-zone { 
+            border: 2px dashed #cbd5e1; padding: 30px; text-align: center; border-radius: 12px; 
+            cursor: pointer; background: #f1f5f9; transition: all 0.3s; margin-bottom: 20px;
+        }
+        .drop-zone.dragover { border-color: var(--primary); background: #eff6ff; }
+
+        /* 文件列表 */
+        .file-list { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .file-item { 
+            padding: 12px 15px; background: white; border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: grab; transition: background 0.2s;
+        }
+        .file-item:active { cursor: grabbing; }
+        .file-item.dragging { opacity: 0.5; background: #ebf5ff; }
+        .file-item:last-child { border-bottom: none; }
+        
+        .file-info { display: flex; align-items: center; gap: 10px; flex-grow: 1; pointer-events: none; }
+        .file-index { background: #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
+        
+        .file-ops { display: flex; gap: 5px; pointer-events: auto; }
+        .btn-sm { padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; background: white; border-radius: 4px; cursor: pointer; }
+        .btn-sm:hover { background: #f1f5f9; border-color: var(--primary); }
+
+        #mergeBtn { 
+            width: 100%; background: var(--accent); color: white; border: none; 
+            padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        #mergeBtn:disabled { background: #94a3b8; }
+
+        .log-container { 
+            background: var(--log-bg); color: #94fbab; padding: 15px; border-radius: 8px; 
+            height: 180px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="margin-top:0">PDF 智能拼接 <small style="font-weight:normal; font-size:14px; color:#64748b">支持拖拽文件排序</small></h2>
+    
+    <div class="drop-zone" id="dropZone">
+        <p>拖拽多个 PDF 至此 (自动按名称排序) 或 <b>点击上传</b></p>
+        <input type="file" id="fileInput" multiple accept=".pdf" style="display:none">
+    </div>
+
+    <div id="fileList" class="file-list"></div>
+
+    <button id="mergeBtn" onclick="executeMerge()">合并 PDF 并重构书签</button>
+
+    <div class="log-container" id="logBox">准备就绪。请添加 PDF 文件。</div>
+</div>
+
+<script>
+    const { PDFDocument, PDFName, PDFString, PDFNumber, PDFArray, PDFHexString } = PDFLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    let selectedFiles = [];
+    const logBox = document.getElementById('logBox');
+    const fileListEl = document.getElementById('fileList');
+
+    // --- 拖拽上传逻辑 ---
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(n => {
+        dropZone.addEventListener(n, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+        dropZone.classList.remove('dragover');
+        handleNewFiles(Array.from(e.dataTransfer.files));
+    });
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => handleNewFiles(Array.from(fileInput.files)));
+
+    // --- 文件处理与初始化排序 ---
+    function handleNewFiles(files) {
+        const pdfs = files.filter(f => f.type === "application/pdf");
+        // 关键逻辑：对本次选中的多个文件按名称排序
+        pdfs.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        
+        selectedFiles = [...selectedFiles, ...pdfs];
+        renderList();
+        addLog(`添加了 ${pdfs.length} 个文件并已按名称预排序`);
+    }
+
+    // --- 拖拽列表排序逻辑 (HTML5 Drag and Drop) ---
+    function renderList() {
+        fileListEl.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.draggable = true;
+            item.dataset.index = index;
+            item.innerHTML = `
+                <div class="file-info">
+                    <span class="file-index">${index + 1}</span>
+                    <span>${file.name}</span>
+                </div>
+                <div class="file-ops">
+                    <button class="btn-sm" onclick="move(${index}, -1)">↑</button>
+                    <button class="btn-sm" onclick="move(${index}, 1)">↓</button>
+                    <button class="btn-sm" style="color:#ef4444" onclick="removeFile(${index})">✕</button>
+                </div>
+            `;
+
+            // 拖拽事件
+            item.addEventListener('dragstart', (e) => {
+                e.target.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', index);
+            });
+            item.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+            
+            fileListEl.appendChild(item);
+        });
+    }
+
+    fileListEl.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(fileListEl, e.clientY);
+        const dragging = document.querySelector('.dragging');
+        if (afterElement == null) {
+            fileListEl.appendChild(dragging);
+        } else {
+            fileListEl.insertBefore(dragging, afterElement);
+        }
+    });
+
+    fileListEl.addEventListener('drop', e => {
+        e.preventDefault();
+        // 重新同步 selectedFiles 数组顺序
+        const items = Array.from(fileListEl.querySelectorAll('.file-item'));
+        const newOrder = items.map(item => selectedFiles[parseInt(item.dataset.index)]);
+        selectedFiles = newOrder;
+        renderList(); // 刷新以更新序号
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.file-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // --- 传统按钮排序 ---
+    window.move = (index, dir) => {
+        const newIndex = index + dir;
+        if (newIndex >= 0 && newIndex < selectedFiles.length) {
+            [selectedFiles[index], selectedFiles[newIndex]] = [selectedFiles[newIndex], selectedFiles[index]];
+            renderList();
+        }
+    };
+
+    window.removeFile = (index) => {
+        selectedFiles.splice(index, 1);
+        renderList();
+    };
+
+    function addLog(msg) {
+        const d = document.createElement('div');
+        d.innerText = `> ${msg}`;
+        logBox.appendChild(d);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function longestCommonPrefix(strs) {
+        if (!strs || strs.length === 0) return "";
+        if (strs.length === 1) return strs[0];
+        
+        // 以第一个字符串为基准
+        for (let i = 0; i < strs[0].length; i++) {
+            const char = strs[0][i];
+            // 检查其他字符串的相同位置
+            for (let j = 1; j < strs.length; j++) {
+                // 如果当前位置超出其他字符串长度，或者字符不匹配
+                if (i >= strs[j].length || strs[j][i] !== char) {
+                    return strs[0].substring(0, i);
+                }
+            }
+        }
+        
+        return strs[0];
+    }
+
+    // --- 核心合并与书签重构逻辑 (维持之前所有优化) ---
+    async function executeMerge() {
+        if (selectedFiles.length < 2) return alert("请至少添加两个 PDF 进行合并");
+        const btn = document.getElementById('mergeBtn');
+        btn.disabled = true;
+        logBox.innerHTML = '';
+        addLog("正在启动合并流程...");
+
+        try {
+            const mergedDoc = await PDFDocument.create();
+            let totalPageOffset = 0;
+            const combinedOutlines = [];
+
+            for (const file of selectedFiles) {
+                addLog(`正在读取: ${file.name}`);
+                const data = await file.arrayBuffer();
+                
+                // 1. 获取书签并根据当前偏移量平移
+                const rawOutline = await fetchOutlineData(data);
+                combinedOutlines.push(...shiftOutlinePages(rawOutline, totalPageOffset));
+
+                // 2. 复制页面并插入
+                const srcDoc = await PDFDocument.load(data);
+                const pages = await mergedDoc.copyPages(srcDoc, srcDoc.getPageIndices());
+                pages.forEach(p => mergedDoc.addPage(p));
+
+                totalPageOffset += srcDoc.getPageCount();
+            }
+
+            // 3. 构建书签字典
+            if (combinedOutlines.length > 0) {
+                addLog(`合并完成。正在重构 ${combinedOutlines.length} 个书签节点...`);
+                const pageRefs = mergedDoc.getPages().map(p => p.ref);
+                const pages = mergedDoc.getPages();
+                injectOutlines(mergedDoc, combinedOutlines, pageRefs, pages);
+            }
+
+            const name = longestCommonPrefix(selectedFiles.flatMap(f => f.name)) || `Merged_Book_${Date.now()}`;
+            const bytes = await mergedDoc.save();
+            const blob = new Blob([bytes], { type: "application/pdf" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = name + '.pdf'
+            link.click();
+            addLog("✅ 任务圆满完成！");
+
+        } catch (e) {
+            addLog(`❌ 错误: ${e.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function fetchOutlineData(data) {
+        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(data) }).promise;
+        const outline = await doc.getOutline();
+        if (!outline) return [];
+        async function traverse(items) {
+            const res = [];
+            for (const item of items) {
+                let pIdx = -1;
+                try {
+                    if (item.dest) {
+                        const d = typeof item.dest === 'string' ? await doc.getDestination(item.dest) : item.dest;
+                        pIdx = await doc.getPageIndex(d[0]);
+                    }
+                } catch(e){}
+                res.push({ title: item.title, pageIdx: pIdx, children: item.items ? await traverse(item.items) : [] });
+            }
+            return res;
+        }
+        return traverse(outline);
+    }
+
+    function shiftOutlinePages(items, offset) {
+        return items.map(i => ({
+            ...i,
+            pageIdx: i.pageIdx !== -1 ? i.pageIdx + offset : -1,
+            children: shiftOutlinePages(i.children, offset)
+        }));
+    }
+
+    function injectOutlines(pdfDoc, outlineData, pageRefs, pages) {
+        const context = pdfDoc.context;
+        const rootDict = context.obj({ Type: PDFName.of('Outlines'), Count: PDFNumber.of(countTotalNodes(outlineData)) });
+        const rootRef = context.register(rootDict);
+
+        function createTree(items, parentRef) {
+            let first, last, prev;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const dict = context.obj({ Title: PDFHexString.fromText(item.title), Parent: parentRef });
+                if (item.pageIdx >= 0 && item.pageIdx < pageRefs.length) {
+                    const h = pages[item.pageIdx].getSize().height;
+                    const dest = PDFArray.withContext(context);
+                    dest.push(pageRefs[item.pageIdx]);
+                    dest.push(PDFName.of('XYZ'));
+                    dest.push(PDFNumber.of(0)); 
+                    dest.push(PDFNumber.of(h)); // 顶部对齐
+                    dest.push(PDFNumber.of(0));
+                    dict.set(PDFName.of('Dest'), dest);
+                }
+                const ref = context.register(dict);
+                if (i === 0) first = ref;
+                last = ref;
+                if (prev) {
+                    context.lookup(prev).set(PDFName.of('Next'), ref);
+                    dict.set(PDFName.of('Prev'), prev);
+                }
+                if (item.children.length > 0) {
+                    const child = createTree(item.children, ref);
+                    dict.set(PDFName.of('First'), child.first);
+                    dict.set(PDFName.of('Last'), child.last);
+                    dict.set(PDFName.of('Count'), PDFNumber.of(countTotalNodes(item.children)));
+                }
+                prev = ref;
+            }
+            return { first, last };
+        }
+
+        const res = createTree(outlineData, rootRef);
+        rootDict.set(PDFName.of('First'), res.first);
+        rootDict.set(PDFName.of('Last'), res.last);
+        pdfDoc.catalog.set(PDFName.of('Outlines'), rootRef);
+    }
+
+    function toUtf16String(t) {
+        const b = new Uint8Array(t.length * 2 + 2);
+        b[0] = 0xFE; b[1] = 0xFF;
+        for (let i = 0; i < t.length; i++) {
+            const c = t.charCodeAt(i);
+            b[i * 2 + 2] = (c >> 8) & 0xFF;
+            b[i * 2 + 3] = c & 0xFF;
+        }
+        return PDFString.of(Array.from(b).map(x => String.fromCharCode(x)).join(''));
+    }
+
+    function countTotalNodes(items) {
+        let c = items.length;
+        items.forEach(i => c += countTotalNodes(i.children));
+        return c;
+    }
+</script>
+</body>
+</html>

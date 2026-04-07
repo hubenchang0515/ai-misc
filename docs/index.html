@@ -272,12 +272,12 @@
                 <div class="sub">AI 辅助创作 / 设计 × 开发 × 创意</div>
             </div>
             <div class="header-right">
-                <span>16</span> 件作品 · 持续更新
+                <span id="item-count"></span> 件作品 · 持续更新
             </div>
         </div>
 
         <!-- 作品网格卡片列表 -->
-        <div class="grid">
+        <div id="item-list" class="grid">
             <div class="card">
                 <div class="card-img" ></div>
                 <div class="card-content">
@@ -396,6 +396,18 @@
             <div class="card">
                 <div class="card-img" ></div>
                 <div class="card-content">
+                    <div class="card-title">PDF 拼接 <span class="card-year">2026</span></div>
+                    <div class="card-desc">将多个 PDF 文件合并成一个文档，同时合并书签。</div>
+                    <div class="card-meta">
+                        <span class="tag">#PDF</span>
+                        <a href="pdf-merge.html" class="card-link">查看<span>→</span></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-img" ></div>
+                <div class="card-content">
                     <div class="card-title">PDF 拆分 <span class="card-year">2026</span></div>
                     <div class="card-desc">将 PDF 文档按指定的页数拆分成多个文档，同时拆分书签。</div>
                     <div class="card-meta">
@@ -501,5 +513,11 @@
             ⚡ 点击“查看/预览”按钮为示意链接 · 每张卡片代表一件作品 · 设计随时进化
         </div>
     </div>
+    
+    <script>
+        const itemCount = document.getElementById("item-count");
+        const itemList = document.getElementById("item-list");
+        itemCount.innerText = String(itemList.children.length);
+    </script>
 </body>
 </html>
