@@ -96,6 +96,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            white-space: nowrap;
         }
         button:hover { background: var(--primary-hover); transform: translateY(-1px); }
         button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
@@ -151,7 +152,7 @@
                 <input type="number" id="chunkSize" value="100" min="1">
             </div>
             <button id="startBtn" onclick="executeTask()">
-                <span>开始执行拆分</span>
+                <span>开始</span>
             </button>
         </div>
 
