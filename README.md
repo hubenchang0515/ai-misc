@@ -17,6 +17,7 @@ AI 生成的一些乱七八糟的应用
 * [PDF 浏览](https://misc.xplanc.org/pdf-view)
 * [二维码生成与解析](https://misc.xplanc.org/qrcode)
 * [赛车](https://misc.xplanc.org/race)
+* [舒尔特表测试](https://misc.xplanc.org/schulte-grid)
 * [贪吃蛇](https://misc.xplanc.org/snake)
 * [俄罗斯方块](https://misc.xplanc.org/tetris)
 * [艺术字图片生成](https://misc.xplanc.org/text-img)
