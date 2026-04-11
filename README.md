@@ -8,6 +8,7 @@ AI 生成的一些乱七八糟的应用
 * [课程表制作](https://misc.xplanc.org/drag-class)
 * [画图](https://misc.xplanc.org/draw)
 * [五子棋](https://misc.xplanc.org/five-in-a-row)
+* [哈希计算器](https://misc.xplanc.org/hash)
 * [Linux 命令搜索](https://misc.xplanc.org/linux-cmd)
 * [节拍器](https://misc.xplanc.org/metronome)
 * [扫雷](https://misc.xplanc.org/mine-sweeper)

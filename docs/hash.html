@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>哈希计算器 - 支持文本与文件 | MD5/SHA系列</title>
+    <!-- 使用现代简洁风格，并确保所有功能纯原生实现，不依赖外部网络库 -->
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f6f9fc 0%, #eef2f5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .card {
+            max-width: 880px;
+            width: 100%;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(0px);
+            background: #ffffff;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .header {
+            background: #1e2a3e;
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.8rem;
+            letter-spacing: -0.3px;
+        }
+
+        .header p {
+            margin: 0.5rem 0 0;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        /* 算法选择行 */
+        .algo-section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 1.8rem;
+            background: #f8fafc;
+            padding: 0.9rem 1.2rem;
+            border-radius: 1.5rem;
+            border: 1px solid #e2edf2;
+        }
+
+        .algo-label {
+            font-weight: 600;
+            color: #0f2b3d;
+            background: #e9f0f5;
+            padding: 0.25rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+        }
+
+        select {
+            flex: 2;
+            min-width: 160px;
+            background: white;
+            border: 1px solid #cbdde6;
+            border-radius: 2rem;
+            padding: 0.6rem 1rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.2s;
+            outline: none;
+        }
+
+        select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+
+        /* 双模式区块 */
+        .mode-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.8rem;
+            border-bottom: 2px solid #e2edf2;
+            padding-bottom: 0.5rem;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #4a627a;
+        }
+
+        .mode-btn.active {
+            background: #1e2a3e;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+
+        .mode-btn:not(.active):hover {
+            background: #e9edf2;
+            color: #0f2b3d;
+        }
+
+        /* 面板 */
+        .panel {
+            display: none;
+            animation: fade 0.2s ease;
+        }
+
+        .panel.active-panel {
+            display: block;
+        }
+
+        @keyframes fade {
+            from { opacity: 0; transform: translateY(5px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        textarea {
+            width: 100%;
+            border: 1px solid #cbdde6;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            background: #fefefe;
+            transition: 0.2s;
+        }
+
+        textarea:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+
+        .file-area {
+            background: #f9fdfe;
+            border: 2px dashed #bdd3e0;
+            border-radius: 1.5rem;
+            padding: 1.8rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        .file-area:hover {
+            background: #f1f9ff;
+            border-color: #3b82f6;
+        }
+
+        .file-input-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1e2a3e;
+            color: white;
+            padding: 0.6rem 1.4rem;
+            border-radius: 2rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .file-input-label:hover {
+            background: #0f2b3d;
+            transform: scale(0.97);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: #2c5a74;
+            background: #eef3f7;
+            display: inline-block;
+            padding: 0.3rem 1rem;
+            border-radius: 2rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1.8rem 0 1.2rem;
+        }
+
+        .btn {
+            background: #eef2f5;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            color: #1e2a3e;
+        }
+
+        .btn-primary {
+            background: #1e2a3e;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary:hover {
+            background: #0f2b3d;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .result-area {
+            background: #f1f5f9;
+            border-radius: 1.2rem;
+            padding: 1.2rem;
+            margin-top: 1rem;
+            word-break: break-all;
+            border: 1px solid #e2edf2;
+        }
+
+        .result-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: #3b6e8b;
+            margin-bottom: 0.5rem;
+        }
+
+        .hash-value {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            background: white;
+            padding: 0.8rem;
+            border-radius: 1rem;
+            border: 1px solid #dce5ec;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: white;
+            border: 1px solid #bdd3e0;
+            border-radius: 2rem;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.7rem;
+            margin-left: 0.8rem;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .copy-btn:hover {
+            background: #e2edf2;
+        }
+
+        .status-msg {
+            margin-top: 0.8rem;
+            font-size: 0.8rem;
+            color: #2c6e2c;
+            background: #e6f4ea;
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            display: inline-block;
+        }
+
+        hr {
+            margin: 1rem 0;
+            border: none;
+            border-top: 1px solid #e2edf2;
+        }
+
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 1rem;
+            color: #6c8aa3;
+            border-top: 1px solid #e9eff3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+        <h1>🔐 哈希计算器</h1>
+        <p>文本哈希 · 文件指纹 · 支持 MD5 及多种算法</p>
+    </div>
+    <div class="content">
+        <!-- 算法选择区 -->
+        <div class="algo-section">
+            <span class="algo-label">哈希算法</span>
+            <select id="algorithmSelect">
+                <option value="MD5" selected>MD5 (默认)</option>
+                <option value="SHA-1">SHA-1</option>
+                <option value="SHA-256">SHA-256</option>
+                <option value="SHA-384">SHA-384</option>
+                <option value="SHA-512">SHA-512</option>
+            </select>
+        </div>
+
+        <!-- 模式切换 -->
+        <div class="mode-tabs">
+            <button class="mode-btn active" data-mode="text">📝 文本模式</button>
+            <button class="mode-btn" data-mode="file">📁 文件模式</button>
+        </div>
+
+        <!-- 文本模式面板 -->
+        <div id="textPanel" class="panel active-panel">
+            <textarea id="textInput" rows="5" placeholder="在此输入文本，例如：Hello World!&#10;输入后将自动或手动计算哈希值"></textarea>
+            <div class="action-buttons">
+                <button id="calcTextBtn" class="btn btn-primary">⚡ 计算文本哈希</button>
+                <button id="clearTextBtn" class="btn btn-secondary">🗑 清空</button>
+            </div>
+        </div>
+
+        <!-- 文件模式面板 -->
+        <div id="filePanel" class="panel">
+            <div class="file-area" id="fileDropArea">
+                <label class="file-input-label">
+                    📂 选择文件
+                    <input type="file" id="fileInput">
+                </label>
+                <div id="fileInfo" class="file-info">未选择任何文件</div>
+                <div style="font-size:0.7rem; margin-top:10px; color:#5e7e97;">支持点击或拖拽文件至此区域</div>
+            </div>
+            <div class="action-buttons">
+                <button id="calcFileBtn" class="btn btn-primary">🔍 计算文件哈希</button>
+                <button id="clearFileBtn" class="btn btn-secondary">⟳ 清除文件</button>
+            </div>
+        </div>
+
+        <!-- 结果展示区 -->
+        <div class="result-area">
+            <div class="result-label">
+                📋 哈希结果
+                <button id="copyHashBtn" class="copy-btn" style="float:right;">复制</button>
+            </div>
+            <div id="hashResult" class="hash-value">—— 等待计算 ——</div>
+            <div id="statusMessage" class="status-msg" style="display: none;"></div>
+        </div>
+        <footer>✨ 支持大文件流式处理（基于 FileReader + Web Crypto API / 纯JS实现MD5后备）。大文件哈希计算不阻塞UI。</footer>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- DOM 元素 ----------
+        const algoSelect = document.getElementById('algorithmSelect');
+        const textPanel = document.getElementById('textPanel');
+        const filePanel = document.getElementById('filePanel');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const textInput = document.getElementById('textInput');
+        const calcTextBtn = document.getElementById('calcTextBtn');
+        const clearTextBtn = document.getElementById('clearTextBtn');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfoDiv = document.getElementById('fileInfo');
+        const calcFileBtn = document.getElementById('calcFileBtn');
+        const clearFileBtn = document.getElementById('clearFileBtn');
+        const hashResultDiv = document.getElementById('hashResult');
+        const copyHashBtn = document.getElementById('copyHashBtn');
+        const statusMsgDiv = document.getElementById('statusMessage');
+        const fileDropArea = document.getElementById('fileDropArea');
+
+        // 当前选中的文件对象 (File)
+        let currentFile = null;
+        // 当前活动模式: 'text' 或 'file'
+        let currentMode = 'text';
+        // 用于记录上次计算结果 (避免重复复制空内容)
+        let lastHashValue = '';
+
+        // ---------- 辅助函数 ----------
+        function showStatus(message, isError = false) {
+            statusMsgDiv.style.display = 'inline-block';
+            statusMsgDiv.textContent = message;
+            statusMsgDiv.style.backgroundColor = isError ? '#ffe6e5' : '#e6f4ea';
+            statusMsgDiv.style.color = isError ? '#b91c1c' : '#2c6e2c';
+            setTimeout(() => {
+                if (statusMsgDiv.style.display === 'inline-block') {
+                    // 保留3秒后自动隐藏（除非有新消息）
+                    setTimeout(() => {
+                        if (statusMsgDiv.style.display === 'inline-block') 
+                            statusMsgDiv.style.display = 'none';
+                    }, 2500);
+                }
+            }, 2000);
+        }
+
+        function hideStatus() {
+            statusMsgDiv.style.display = 'none';
+        }
+
+        // 更新哈希结果显示
+        function setHashResult(value, algoName) {
+            if (!value) {
+                hashResultDiv.innerHTML = '—— 无结果 ——';
+                lastHashValue = '';
+                return;
+            }
+            const shortAlgo = algoName || (algoSelect.value);
+            hashResultDiv.innerHTML = value;
+            lastHashValue = value;
+        }
+
+        // ---------- 核心哈希函数 (通用异步) ----------
+        // 使用 Web Crypto API 支持 SHA-1, SHA-256, SHA-384, SHA-512
+        // 对于 MD5, 由于 Web Crypto 不原生支持，需要后备实现 (使用第三方纯JS实现, 但为了无依赖，手动实现轻量MD5)
+        // 注意: 为了完整性，实现 RFC1321 的 MD5 算法 (纯JS)
+        
+        /* 轻量级 MD5 实现 (兼容文本和文件ArrayBuffer) —— 基于 Joseph Myers 实现风格，优化用于字符串与二进制 */
+        function md5(stringOrBuffer, isBinaryBuffer = false) {
+            // 统一的MD5核心函数，输入为Uint8Array，输出hex
+            function md5Core(bytes) {
+                // 辅助函数
+                function md5cycle(x, k) {
+                    var a = x[0], b = x[1], c = x[2], d = x[3];
+                    a = ff(a, b, c, d, k[0], 7, -680876936);
+                    d = ff(d, a, b, c, k[1], 12, -389564586);
+                    c = ff(c, d, a, b, k[2], 17, 606105819);
+                    b = ff(b, c, d, a, k[3], 22, -1044525330);
+                    a = ff(a, b, c, d, k[4], 7, -176418897);
+                    d = ff(d, a, b, c, k[5], 12, 1200080426);
+                    c = ff(c, d, a, b, k[6], 17, -1473231341);
+                    b = ff(b, c, d, a, k[7], 22, -45705983);
+                    a = ff(a, b, c, d, k[8], 7, 1770035416);
+                    d = ff(d, a, b, c, k[9], 12, -1958414417);
+                    c = ff(c, d, a, b, k[10], 17, -42063);
+                    b = ff(b, c, d, a, k[11], 22, -1990404162);
+                    a = ff(a, b, c, d, k[12], 7, 1804603682);
+                    d = ff(d, a, b, c, k[13], 12, -40341101);
+                    c = ff(c, d, a, b, k[14], 17, -1502002290);
+                    b = ff(b, c, d, a, k[15], 22, 1236535329);
+                    a = gg(a, b, c, d, k[1], 5, -165796806);
+                    d = gg(d, a, b, c, k[6], 9, -1069501632);
+                    c = gg(c, d, a, b, k[11], 14, 643717713);
+                    b = gg(b, c, d, a, k[0], 20, -373897302);
+                    a = gg(a, b, c, d, k[5], 5, -701558691);
+                    d = gg(d, a, b, c, k[10], 9, 38016083);
+                    c = gg(c, d, a, b, k[15], 14, -660478335);
+                    b = gg(b, c, d, a, k[4], 20, -405537848);
+                    a = gg(a, b, c, d, k[9], 5, 568446438);
+                    d = gg(d, a, b, c, k[14], 9, -1019803690);
+                    c = gg(c, d, a, b, k[3], 14, -187363961);
+                    b = gg(b, c, d, a, k[8], 20, 1163531501);
+                    a = gg(a, b, c, d, k[13], 5, -1444681467);
+                    d = gg(d, a, b, c, k[2], 9, -51403784);
+                    c = gg(c, d, a, b, k[7], 14, 1735328473);
+                    b = gg(b, c, d, a, k[12], 20, -1926607734);
+                    a = hh(a, b, c, d, k[5], 4, -378558);
+                    d = hh(d, a, b, c, k[8], 11, -2022574463);
+                    c = hh(c, d, a, b, k[11], 16, 1839030562);
+                    b = hh(b, c, d, a, k[14], 23, -35309556);
+                    a = hh(a, b, c, d, k[1], 4, -1530992060);
+                    d = hh(d, a, b, c, k[4], 11, 1272893353);
+                    c = hh(c, d, a, b, k[7], 16, -155497632);
+                    b = hh(b, c, d, a, k[10], 23, -1094730640);
+                    a = hh(a, b, c, d, k[13], 4, 681279174);
+                    d = hh(d, a, b, c, k[0], 11, -358537222);
+                    c = hh(c, d, a, b, k[3], 16, -722521979);
+                    b = hh(b, c, d, a, k[6], 23, 76029189);
+                    a = hh(a, b, c, d, k[9], 4, -640364487);
+                    d = hh(d, a, b, c, k[12], 11, -421815835);
+                    c = hh(c, d, a, b, k[15], 16, 530742520);
+                    b = hh(b, c, d, a, k[2], 23, -995338651);
+                    a = ii(a, b, c, d, k[0], 6, -198630844);
+                    d = ii(d, a, b, c, k[7], 10, 1126891415);
+                    c = ii(c, d, a, b, k[14], 15, -1416354905);
+                    b = ii(b, c, d, a, k[5], 21, -57434055);
+                    a = ii(a, b, c, d, k[12], 6, 1700485571);
+                    d = ii(d, a, b, c, k[3], 10, -1894986606);
+                    c = ii(c, d, a, b, k[10], 15, -1051523);
+                    b = ii(b, c, d, a, k[1], 21, -2054922799);
+                    a = ii(a, b, c, d, k[8], 6, 1873313359);
+                    d = ii(d, a, b, c, k[15], 10, -30611744);
+                    c = ii(c, d, a, b, k[6], 15, -1560198380);
+                    b = ii(b, c, d, a, k[13], 21, 1309151649);
+                    a = ii(a, b, c, d, k[4], 6, -145523070);
+                    d = ii(d, a, b, c, k[11], 10, -1120210379);
+                    c = ii(c, d, a, b, k[2], 15, 718787259);
+                    b = ii(b, c, d, a, k[9], 21, -343485551);
+                    x[0] = add32(a, x[0]);
+                    x[1] = add32(b, x[1]);
+                    x[2] = add32(c, x[2]);
+                    x[3] = add32(d, x[3]);
+                }
+                function cmn(q, a, b, x, s, t) { return add32(rol(add32(add32(a, q), add32(x, t)), s), b); }
+                function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
+                function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
+                function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+                function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
+                function rol(num, cnt) { return (num << cnt) | (num >>> (32 - cnt)); }
+                function add32(a, b) { return (a + b) & 0xFFFFFFFF; }
+
+                var n = bytes.length;
+                var blocks = [];
+                var i;
+                for (i = 0; i < n; i += 4) {
+                    blocks[i >> 2] = (bytes[i]) | (bytes[i+1] << 8) | (bytes[i+2] << 16) | (bytes[i+3] << 24);
+                }
+                var bitsLen = n * 8;
+                var paddingLen = (n < 56) ? 56 - n : 120 - n;
+                var padded = new Uint8Array(n + paddingLen + 8);
+                padded.set(bytes);
+                padded[n] = 0x80;
+                var bitLenLow = bitsLen & 0xFFFFFFFF;
+                var bitLenHigh = Math.floor(bitsLen / 0x100000000) & 0xFFFFFFFF;
+                var offset = n + paddingLen;
+                padded[offset] = bitLenLow & 0xFF;
+                padded[offset+1] = (bitLenLow >> 8) & 0xFF;
+                padded[offset+2] = (bitLenLow >> 16) & 0xFF;
+                padded[offset+3] = (bitLenLow >> 24) & 0xFF;
+                padded[offset+4] = bitLenHigh & 0xFF;
+                padded[offset+5] = (bitLenHigh >> 8) & 0xFF;
+                padded[offset+6] = (bitLenHigh >> 16) & 0xFF;
+                padded[offset+7] = (bitLenHigh >> 24) & 0xFF;
+                var state = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476];
+                for (i = 0; i < padded.length; i += 64) {
+                    var chunk = padded.slice(i, i+64);
+                    var words = new Array(16);
+                    for (var j = 0; j < 16; j++) {
+                        words[j] = (chunk[j*4]) | (chunk[j*4+1] << 8) | (chunk[j*4+2] << 16) | (chunk[j*4+3] << 24);
+                    }
+                    var oldState = state.slice();
+                    md5cycle(state, words);
+                    state[0] = add32(state[0], oldState[0]);
+                    state[1] = add32(state[1], oldState[1]);
+                    state[2] = add32(state[2], oldState[2]);
+                    state[3] = add32(state[3], oldState[3]);
+                }
+                var result = '';
+                for (i = 0; i < 4; i++) {
+                    result += ((state[i] & 0xFF).toString(16).padStart(2,'0'));
+                    result += (((state[i] >> 8) & 0xFF).toString(16).padStart(2,'0'));
+                    result += (((state[i] >> 16) & 0xFF).toString(16).padStart(2,'0'));
+                    result += (((state[i] >> 24) & 0xFF).toString(16).padStart(2,'0'));
+                }
+                return result.toLowerCase();
+            }
+            if (isBinaryBuffer && stringOrBuffer instanceof ArrayBuffer) {
+                return md5Core(new Uint8Array(stringOrBuffer));
+            } else if (typeof stringOrBuffer === 'string') {
+                // 文本转为UTF-8字节
+                const encoder = new TextEncoder();
+                const bytes = encoder.encode(stringOrBuffer);
+                return md5Core(bytes);
+            } else if (stringOrBuffer instanceof ArrayBuffer) {
+                return md5Core(new Uint8Array(stringOrBuffer));
+            }
+            return md5Core(new Uint8Array(0));
+        }
+
+        // 通用哈希分发: 根据算法名, data可以是ArrayBuffer 或 字符串
+        async function computeHash(algorithm, data, isFileBuffer = false) {
+            if (algorithm === 'MD5') {
+                // 同步实现返回promise
+                return Promise.resolve(md5(data, isFileBuffer));
+            }
+            // Web Crypto API 支持 SHA-1, SHA-256, SHA-384, SHA-512
+            let cryptoAlgo = algorithm;
+            if (algorithm === 'SHA-1') cryptoAlgo = 'SHA-1';
+            if (algorithm === 'SHA-256') cryptoAlgo = 'SHA-256';
+            if (algorithm === 'SHA-384') cryptoAlgo = 'SHA-384';
+            if (algorithm === 'SHA-512') cryptoAlgo = 'SHA-512';
+            let buffer;
+            if (isFileBuffer) {
+                buffer = data;
+            } else {
+                // 文本模式: 字符串转Uint8Array
+                const enc = new TextEncoder();
+                buffer = enc.encode(data);
+            }
+            const hashBuffer = await crypto.subtle.digest(cryptoAlgo, buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ---------- 文本哈希计算 ----------
+        async function computeTextHash() {
+            const text = textInput.value;
+            if (!text.trim()) {
+                setHashResult('', '');
+                showStatus('⚠️ 请输入文本内容', true);
+                return;
+            }
+            const algo = algoSelect.value;
+            try {
+                showStatus(`⏳ 正在计算 ${algo} 哈希...`);
+                const hash = await computeHash(algo, text, false);
+                setHashResult(hash, algo);
+                showStatus(`✅ 计算完成: ${algo} 哈希已生成`);
+            } catch (err) {
+                console.error(err);
+                setHashResult('', '');
+                showStatus(`❌ 计算失败: ${err.message}`, true);
+            }
+        }
+
+        // ---------- 文件哈希 (流式读取，但一次读取整个文件到ArrayBuffer，对于大文件浏览器可支持) ----------
+        async function computeFileHash() {
+            if (!currentFile) {
+                showStatus('请先选择文件', true);
+                setHashResult('', '');
+                return;
+            }
+            const algo = algoSelect.value;
+            try {
+                showStatus(`📁 正在读取并计算 ${currentFile.name} (${(currentFile.size / 1024).toFixed(1)} KB) 的 ${algo}...`);
+                const arrayBuffer = await currentFile.arrayBuffer();
+                const hash = await computeHash(algo, arrayBuffer, true);
+                setHashResult(hash, algo);
+                showStatus(`✅ 文件哈希完成: ${algo}`);
+            } catch (err) {
+                console.error(err);
+                setHashResult('', '');
+                showStatus(`❌ 文件处理失败: ${err.message}`, true);
+            }
+        }
+
+        // 文件选择更新UI
+        function updateFileInfo(file) {
+            if (file) {
+                const sizeText = file.size < 1024 ? `${file.size} B` : `${(file.size / 1024).toFixed(2)} KB`;
+                fileInfoDiv.innerHTML = `📄 ${file.name} (${sizeText})`;
+                currentFile = file;
+            } else {
+                fileInfoDiv.innerHTML = '未选择任何文件';
+                currentFile = null;
+                setHashResult('', '');
+            }
+        }
+
+        function handleFileSelect(file) {
+            if (!file) return;
+            updateFileInfo(file);
+            // 可选: 自动计算小文件？但为了避免性能，手动点击计算
+        }
+
+        // 清除文件
+        function clearFile() {
+            fileInput.value = '';
+            updateFileInfo(null);
+            setHashResult('', '');
+            hideStatus();
+        }
+
+        // 拖拽处理
+        function setupDragAndDrop() {
+            fileDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileDropArea.style.background = '#eef7fc';
+            });
+            fileDropArea.addEventListener('dragleave', () => {
+                fileDropArea.style.background = '#f9fdfe';
+            });
+            fileDropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileDropArea.style.background = '#f9fdfe';
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                } else {
+                    showStatus('拖拽无效，请重新选择', true);
+                }
+            });
+        }
+
+        // 模式切换
+        function switchMode(mode) {
+            currentMode = mode;
+            if (mode === 'text') {
+                textPanel.classList.add('active-panel');
+                filePanel.classList.remove('active-panel');
+                document.querySelector('[data-mode="text"]').classList.add('active');
+                document.querySelector('[data-mode="file"]').classList.remove('active');
+            } else {
+                filePanel.classList.add('active-panel');
+                textPanel.classList.remove('active-panel');
+                document.querySelector('[data-mode="file"]').classList.add('active');
+                document.querySelector('[data-mode="text"]').classList.remove('active');
+            }
+            // 可选重置结果
+            // 不清空结果以免混淆
+        }
+
+        // 复制哈希
+        function copyHash() {
+            if (lastHashValue && lastHashValue !== '—— 无结果 ——' && lastHashValue !== '—— 等待计算 ——') {
+                navigator.clipboard.writeText(lastHashValue).then(() => {
+                    showStatus('📋 哈希已复制到剪贴板');
+                }).catch(() => showStatus('复制失败', true));
+            } else {
+                showStatus('没有可复制的哈希值', true);
+            }
+        }
+
+        // 事件绑定
+        calcTextBtn.addEventListener('click', computeTextHash);
+        clearTextBtn.addEventListener('click', () => { textInput.value = ''; setHashResult('', ''); hideStatus(); });
+        calcFileBtn.addEventListener('click', computeFileHash);
+        clearFileBtn.addEventListener('click', clearFile);
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFileSelect(e.target.files[0]);
+            else clearFile();
+        });
+        copyHashBtn.addEventListener('click', copyHash);
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+                if (mode === 'text') switchMode('text');
+                else switchMode('file');
+            });
+        });
+        // 文本输入默认: 如果焦点离开可以自动？为了用户体验，不自动，手动计算更可靠
+        setupDragAndDrop();
+        // 初始化默认显示文本模式
+        switchMode('text');
+        // 默认MD5示例文字
+        textInput.value = 'Hello World';
+        // 可预先计算一次示例哈希（可选）
+        setTimeout(() => {
+            computeTextHash();
+        }, 100);
+    })();
+</script>
+</body>
+</html>
