@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>哈希计算器 - 支持文本与文件 | MD5/SHA系列</title>
-    <!-- 引入 CryptoJS 成熟库，稳定支持所有哈希算法 -->
+    <title>哈希计算器 - 支持文本与文件 | MD5/SHA1/SHA2/SHA3全系列</title>
+    <!-- 引入 CryptoJS 完整库，支持 MD5, SHA1, SHA256, SHA384, SHA512, SHA3 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <style>
         * {
@@ -23,15 +23,12 @@
         }
 
         .card {
-            max-width: 880px;
+            max-width: 920px;
             width: 100%;
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: blur(0px);
             background: #ffffff;
             border-radius: 2rem;
             box-shadow: 0 20px 35px -12px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.05);
             overflow: hidden;
-            transition: all 0.2s ease;
         }
 
         .header {
@@ -58,7 +55,6 @@
             padding: 2rem;
         }
 
-        /* 算法选择行 */
         .algo-section {
             display: flex;
             flex-wrap: wrap;
@@ -82,15 +78,14 @@
 
         select {
             flex: 2;
-            min-width: 160px;
+            min-width: 180px;
             background: white;
             border: 1px solid #cbdde6;
             border-radius: 2rem;
             padding: 0.6rem 1rem;
             font-weight: 500;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: 0.2s;
             outline: none;
         }
 
@@ -99,7 +94,6 @@
             box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
         }
 
-        /* 双模式区块 */
         .mode-tabs {
             display: flex;
             gap: 0.5rem;
@@ -131,7 +125,6 @@
             color: #0f2b3d;
         }
 
-        /* 面板 */
         .panel {
             display: none;
             animation: fade 0.2s ease;
@@ -279,6 +272,8 @@
             overflow-x: auto;
             white-space: pre-wrap;
             word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         .copy-btn {
@@ -299,17 +294,9 @@
         .status-msg {
             margin-top: 0.8rem;
             font-size: 0.8rem;
-            color: #2c6e2c;
-            background: #e6f4ea;
             padding: 0.4rem 1rem;
             border-radius: 2rem;
             display: inline-block;
-        }
-
-        hr {
-            margin: 1rem 0;
-            border: none;
-            border-top: 1px solid #e2edf2;
         }
 
         footer {
@@ -326,10 +313,9 @@
 <div class="card">
     <div class="header">
         <h1>🔐 哈希计算器</h1>
-        <p>文本哈希 · 文件指纹 · 支持 MD5 及多种算法（基于 CryptoJS）</p>
+        <p>文本/文件指纹 · MD5 · SHA-1 · SHA-2 · <strong style="color:#ffd966;">SHA-3 (224/256/384/512)</strong></p>
     </div>
     <div class="content">
-        <!-- 算法选择区 -->
         <div class="algo-section">
             <span class="algo-label">哈希算法</span>
             <select id="algorithmSelect">
@@ -338,25 +324,26 @@
                 <option value="SHA-256">SHA-256</option>
                 <option value="SHA-384">SHA-384</option>
                 <option value="SHA-512">SHA-512</option>
+                <option value="SHA3-224">SHA3-224</option>
+                <option value="SHA3-256">SHA3-256</option>
+                <option value="SHA3-384">SHA3-384</option>
+                <option value="SHA3-512">SHA3-512</option>
             </select>
         </div>
 
-        <!-- 模式切换 -->
         <div class="mode-tabs">
             <button class="mode-btn active" data-mode="text">📝 文本模式</button>
             <button class="mode-btn" data-mode="file">📁 文件模式</button>
         </div>
 
-        <!-- 文本模式面板 -->
         <div id="textPanel" class="panel active-panel">
-            <textarea id="textInput" rows="5" placeholder="在此输入文本，例如：Hello World!&#10;输入后将自动或手动计算哈希值"></textarea>
+            <textarea id="textInput" rows="5" placeholder="在此输入文本，例如：Hello World!&#10;支持中文、特殊字符等任意文本"></textarea>
             <div class="action-buttons">
                 <button id="calcTextBtn" class="btn btn-primary">⚡ 计算文本哈希</button>
                 <button id="clearTextBtn" class="btn btn-secondary">🗑 清空</button>
             </div>
         </div>
 
-        <!-- 文件模式面板 -->
         <div id="filePanel" class="panel">
             <div class="file-area" id="fileDropArea">
                 <label class="file-input-label">
@@ -364,7 +351,7 @@
                     <input type="file" id="fileInput">
                 </label>
                 <div id="fileInfo" class="file-info">未选择任何文件</div>
-                <div style="font-size:0.7rem; margin-top:10px; color:#5e7e97;">支持点击或拖拽文件至此区域</div>
+                <div style="font-size:0.7rem; margin-top:10px; color:#5e7e97;">支持点击或拖拽文件至此区域 (大文件分块处理)</div>
             </div>
             <div class="action-buttons">
                 <button id="calcFileBtn" class="btn btn-primary">🔍 计算文件哈希</button>
@@ -372,7 +359,6 @@
             </div>
         </div>
 
-        <!-- 结果展示区 -->
         <div class="result-area">
             <div class="result-label">
                 📋 哈希结果
@@ -381,13 +367,13 @@
             <div id="hashResult" class="hash-value">—— 等待计算 ——</div>
             <div id="statusMessage" class="status-msg" style="display: none;"></div>
         </div>
-        <footer>✨ 支持大文件流式处理，使用 CryptoJS 确保 MD5 等算法稳定准确。大文件哈希计算采用分块读取，不阻塞UI。</footer>
+        <footer>✨ 基于 CryptoJS 实现，完整支持 SHA-3 系列。大文件采用分块读取 (1MB/块)，内存友好，不阻塞UI。</footer>
     </div>
 </div>
 
 <script>
     (function() {
-        // ---------- DOM 元素 ----------
+        // DOM 元素
         const algoSelect = document.getElementById('algorithmSelect');
         const textPanel = document.getElementById('textPanel');
         const filePanel = document.getElementById('filePanel');
@@ -404,14 +390,10 @@
         const statusMsgDiv = document.getElementById('statusMessage');
         const fileDropArea = document.getElementById('fileDropArea');
 
-        // 当前选中的文件对象 (File)
         let currentFile = null;
-        // 当前活动模式: 'text' 或 'file'
         let currentMode = 'text';
-        // 用于记录上次计算结果
         let lastHashValue = '';
 
-        // ---------- 辅助函数 ----------
         function showStatus(message, isError = false) {
             statusMsgDiv.style.display = 'inline-block';
             statusMsgDiv.textContent = message;
@@ -431,7 +413,6 @@
             statusMsgDiv.style.display = 'none';
         }
 
-        // 更新哈希结果显示
         function setHashResult(value) {
             if (!value) {
                 hashResultDiv.innerHTML = '—— 无结果 ——';
@@ -442,54 +423,97 @@
             lastHashValue = value;
         }
 
-        // ---------- 使用 CryptoJS 计算哈希 ----------
-        // 文本哈希计算（同步，但为了统一异步风格使用Promise）
+        // ---------- 文本哈希计算 (同步转Promise) ----------
         function computeTextHashWithCryptoJS(text, algorithm) {
-            return new Promise((resolve) => {
-                let result = '';
+            return new Promise((resolve, reject) => {
                 try {
-                    if (algorithm === 'MD5') {
-                        result = CryptoJS.MD5(text).toString();
-                    } else if (algorithm === 'SHA-1') {
-                        result = CryptoJS.SHA1(text).toString();
-                    } else if (algorithm === 'SHA-256') {
-                        result = CryptoJS.SHA256(text).toString();
-                    } else if (algorithm === 'SHA-384') {
-                        result = CryptoJS.SHA384(text).toString();
-                    } else if (algorithm === 'SHA-512') {
-                        result = CryptoJS.SHA512(text).toString();
-                    } else {
-                        throw new Error('不支持的算法');
+                    let result = '';
+                    switch(algorithm) {
+                        case 'MD5':
+                            result = CryptoJS.MD5(text).toString();
+                            break;
+                        case 'SHA-1':
+                            result = CryptoJS.SHA1(text).toString();
+                            break;
+                        case 'SHA-256':
+                            result = CryptoJS.SHA256(text).toString();
+                            break;
+                        case 'SHA-384':
+                            result = CryptoJS.SHA384(text).toString();
+                            break;
+                        case 'SHA-512':
+                            result = CryptoJS.SHA512(text).toString();
+                            break;
+                        case 'SHA3-224':
+                            result = CryptoJS.SHA3(text, { outputLength: 224 }).toString();
+                            break;
+                        case 'SHA3-256':
+                            result = CryptoJS.SHA3(text, { outputLength: 256 }).toString();
+                            break;
+                        case 'SHA3-384':
+                            result = CryptoJS.SHA3(text, { outputLength: 384 }).toString();
+                            break;
+                        case 'SHA3-512':
+                            result = CryptoJS.SHA3(text, { outputLength: 512 }).toString();
+                            break;
+                        default:
+                            reject(new Error('不支持的算法: ' + algorithm));
                     }
+                    resolve(result);
                 } catch (err) {
-                    throw err;
+                    reject(err);
                 }
-                resolve(result);
             });
         }
 
-        // 文件哈希计算: 使用 FileReader 分块读取 + CryptoJS 的 WordArray 构建（支持大文件流式增量更新）
-        // 为了支持大文件并且不卡UI，采用 slice 分块 + 增量哈希 (CryptoJS 支持)
+        // ---------- 文件哈希计算 (分块增量，支持所有算法包括 SHA3) ----------
+        // CryptoJS 的算法对象都支持 .update() 增量更新，完美支持大文件
         function computeFileHashWithCryptoJS(file, algorithm) {
             return new Promise((resolve, reject) => {
-                const chunkSize = 1024 * 1024; // 1MB 分块
+                const chunkSize = 1024 * 1024; // 1MB
                 let currentOffset = 0;
-                let totalSize = file.size;
+                const totalSize = file.size;
                 let hasher = null;
                 
-                // 根据算法初始化 hasher 对象 (CryptoJS 算法对象)
-                switch(algorithm) {
-                    case 'MD5': hasher = CryptoJS.algo.MD5.create(); break;
-                    case 'SHA-1': hasher = CryptoJS.algo.SHA1.create(); break;
-                    case 'SHA-256': hasher = CryptoJS.algo.SHA256.create(); break;
-                    case 'SHA-384': hasher = CryptoJS.algo.SHA384.create(); break;
-                    case 'SHA-512': hasher = CryptoJS.algo.SHA512.create(); break;
-                    default: reject(new Error('不支持的算法'));
+                // 初始化 hasher (根据算法)
+                try {
+                    switch(algorithm) {
+                        case 'MD5':
+                            hasher = CryptoJS.algo.MD5.create();
+                            break;
+                        case 'SHA-1':
+                            hasher = CryptoJS.algo.SHA1.create();
+                            break;
+                        case 'SHA-256':
+                            hasher = CryptoJS.algo.SHA256.create();
+                            break;
+                        case 'SHA-384':
+                            hasher = CryptoJS.algo.SHA384.create();
+                            break;
+                        case 'SHA-512':
+                            hasher = CryptoJS.algo.SHA512.create();
+                            break;
+                        case 'SHA3-224':
+                            hasher = CryptoJS.algo.SHA3.create({ outputLength: 224 });
+                            break;
+                        case 'SHA3-256':
+                            hasher = CryptoJS.algo.SHA3.create({ outputLength: 256 });
+                            break;
+                        case 'SHA3-384':
+                            hasher = CryptoJS.algo.SHA3.create({ outputLength: 384 });
+                            break;
+                        case 'SHA3-512':
+                            hasher = CryptoJS.algo.SHA3.create({ outputLength: 512 });
+                            break;
+                        default:
+                            reject(new Error('不支持的算法: ' + algorithm));
+                    }
+                } catch(err) {
+                    reject(err);
                 }
                 
                 function readNextChunk() {
                     if (currentOffset >= totalSize) {
-                        // 读取完毕，计算最终哈希
                         const finalHash = hasher.finalize().toString();
                         resolve(finalHash);
                         return;
@@ -500,18 +524,17 @@
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const arrayBuffer = e.target.result;
-                        // 将 ArrayBuffer 转换为 CryptoJS 可识别的 WordArray
+                        // 将 ArrayBuffer 转换为 CryptoJS WordArray
                         const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer));
                         hasher.update(wordArray);
                         currentOffset = end;
-                        // 更新进度消息 (可选)
                         const percent = ((currentOffset / totalSize) * 100).toFixed(1);
-                        showStatus(`⏳ 正在计算哈希... ${percent}%`, false);
-                        // 继续下一块
+                        showStatus(`⏳ 计算 ${algorithm} 哈希... ${percent}%`, false);
+                        // 继续下一块 (使用 setTimeout 避免阻塞)
                         setTimeout(readNextChunk, 0);
                     };
                     reader.onerror = function(err) {
-                        reject(new Error('读取文件分块失败: ' + err.message));
+                        reject(new Error('读取文件失败: ' + err.message));
                     };
                     reader.readAsArrayBuffer(blob);
                 }
@@ -520,7 +543,7 @@
             });
         }
 
-        // ---------- 文本哈希计算入口 ----------
+        // 文本哈希入口
         async function computeTextHash() {
             const text = textInput.value;
             if (!text.trim()) {
@@ -533,7 +556,7 @@
                 showStatus(`⏳ 正在计算 ${algo} 哈希...`);
                 const hash = await computeTextHashWithCryptoJS(text, algo);
                 setHashResult(hash);
-                showStatus(`✅ 计算完成: ${algo} 哈希已生成`);
+                showStatus(`✅ ${algo} 计算完成`);
             } catch (err) {
                 console.error(err);
                 setHashResult('');
@@ -541,7 +564,7 @@
             }
         }
 
-        // ---------- 文件哈希计算入口 ----------
+        // 文件哈希入口
         async function computeFileHash() {
             if (!currentFile) {
                 showStatus('请先选择文件', true);
@@ -553,7 +576,7 @@
                 showStatus(`📁 正在计算 ${currentFile.name} (${(currentFile.size / 1024).toFixed(1)} KB) 的 ${algo}...`);
                 const hash = await computeFileHashWithCryptoJS(currentFile, algo);
                 setHashResult(hash);
-                showStatus(`✅ 文件哈希完成: ${algo}`);
+                showStatus(`✅ 文件 ${algo} 哈希完成`);
             } catch (err) {
                 console.error(err);
                 setHashResult('');
@@ -561,13 +584,11 @@
             }
         }
 
-        // 文件选择更新UI
         function updateFileInfo(file) {
             if (file) {
                 const sizeText = file.size < 1024 ? `${file.size} B` : `${(file.size / 1024).toFixed(2)} KB`;
                 fileInfoDiv.innerHTML = `📄 ${file.name} (${sizeText})`;
                 currentFile = file;
-                // 可选：自动清空之前的结果
                 setHashResult('');
             } else {
                 fileInfoDiv.innerHTML = '未选择任何文件';
@@ -579,10 +600,8 @@
         function handleFileSelect(file) {
             if (!file) return;
             updateFileInfo(file);
-            // 不自动计算，等待用户点击按钮
         }
 
-        // 清除文件
         function clearFile() {
             fileInput.value = '';
             updateFileInfo(null);
@@ -590,7 +609,6 @@
             hideStatus();
         }
 
-        // 拖拽处理
         function setupDragAndDrop() {
             fileDropArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -611,7 +629,6 @@
             });
         }
 
-        // 模式切换
         function switchMode(mode) {
             currentMode = mode;
             if (mode === 'text') {
@@ -625,10 +642,8 @@
                 document.querySelector('[data-mode="file"]').classList.add('active');
                 document.querySelector('[data-mode="text"]').classList.remove('active');
             }
-            // 切换模式时不清空结果，保留上次计算，但保持界面一致性
         }
 
-        // 复制哈希
         function copyHash() {
             if (lastHashValue && lastHashValue !== '—— 无结果 ——' && lastHashValue !== '—— 等待计算 ——') {
                 navigator.clipboard.writeText(lastHashValue).then(() => {
@@ -659,9 +674,8 @@
         
         setupDragAndDrop();
         switchMode('text');
-        // 预设示例文本
+        // 预设示例
         textInput.value = 'Hello World';
-        // 自动计算一次示例哈希
         setTimeout(() => {
             computeTextHash();
         }, 100);
