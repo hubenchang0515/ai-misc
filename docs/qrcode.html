@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>极简二维码工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
@@ -39,7 +39,7 @@
                     立即生成
                 </button>
 
-                <div id="qrcode-wrapper" class="mt-8 flex flex-col items-center justify-center min-h-[220px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                <div id="qrcode-wrapper" class="mt-8 flex flex-col items-center justify-center min-h-[220px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 aspect-square">
                     <div id="qrcode"></div>
                     <p id="qr-placeholder" class="text-slate-400 text-sm mt-2">等待内容输入...</p>
                 </div>
@@ -78,8 +78,8 @@
 
                 <div class="space-y-2">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-tighter">Result / 解析结果</label>
-                    <div id="result" class="p-5 bg-slate-50 text-slate-700 rounded-2xl break-all min-h-[80px] text-sm font-mono leading-relaxed shadow-inner">
-                        <span class="text-slate-400 text-sm">等待解析...</span>
+                    <div class="p-5 bg-slate-50 text-slate-400 rounded-2xl break-all min-h-[150px] text-sm font-mono leading-relaxed shadow-inner">
+                        <span id="result">等待解析...</span>
                     </div>
                 </div>
             </section>
@@ -109,19 +109,14 @@
             placeholder.style.display = "none";
 
             // 2. 重新实例化（这样最稳）
-            try {
-                new QRCode(qrContainer, {
-                    text: text,
-                    width: 200,
-                    height: 200,
-                    colorDark : "#1e293b",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-            } catch (err) {
-                console.error("生成失败:", err);
-                alert("生成二维码时出错");
-            }
+            QRCode.toDataURL(text, (err, url) => {
+                if (err) {
+                    console.error("生成失败:", err);
+                    alert("生成二维码时出错");
+                } else {
+                    qrContainer.innerHTML = `<img src="${url}"/>`
+                }
+            });
         }
 
         /**
@@ -129,7 +124,7 @@
          */
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
-        const resultDiv = document.getElementById('result');
+        const resultSpan = document.getElementById('result');
         const canvas = document.getElementById('temp-canvas');
         const ctx = canvas.getContext('2d');
 
@@ -168,7 +163,7 @@
         }
 
         function processImage(src) {
-            resultDiv.innerHTML = '<span class="text-blue-400 animate-pulse">正在扫描图片...</span>';
+            resultSpan.innerText = '正在扫描图片...';
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.onload = () => {
@@ -179,13 +174,16 @@
                 const code = jsQR(imgData.data, imgData.width, imgData.height);
 
                 if (code) {
-                    resultDiv.innerHTML = `<span class="text-emerald-400">${code.data}</span>`;
+                    resultSpan.className = "text-slate-950";
+                    resultSpan.innerText = code.data;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-rose-400">未发现有效的二维码</span>`;
+                    resultSpan.className = "text-rose-400";
+                    resultSpan.innerText = '未发现有效的二维码';
                 }
             };
             img.onerror = () => {
-                resultDiv.innerHTML = `<span class="text-rose-400">图片加载失败 (检查链接或跨域权限)</span>`;
+                resultSpan.className = "text-rose-400";
+                resultSpan.innerText = '图片加载失败 (请检查链接或跨域权限)';
             };
             img.src = src;
         }
