@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐写术：图片压缩包合成器</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 { margin: 0 0 0.5rem 0; font-size: 1.5rem; text-align: center; color: #0f172a; }
+        p.subtitle { text-align: center; font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+
+        /* 拖拽区域样式 */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            background: #fdfeff;
+            margin-bottom: 1.5rem;
+        }
+
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: var(--primary);
+            background: #f5f7ff;
+        }
+
+        .drop-zone .icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+        .drop-zone p { margin: 0; font-size: 0.9rem; color: #475569; }
+        .drop-zone span { font-size: 0.75rem; color: #94a3b8; }
+
+        /* 文件预览/信息 */
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .hidden-input { display: none; }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 1rem;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #334155;
+            color: white;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>图片隐写工具</h2>
+    <p class="subtitle">将压缩包无缝隐藏在图片中</p>
+
+    <div class="drop-zone" id="imageZone">
+        <span class="icon">🖼️</span>
+        <p>点击或拖拽<strong>封面图片</strong></p>
+        <span>支持 JPG, PNG, WEBP</span>
+        <div id="imageName" class="file-info" style="display: none;"></div>
+        <input type="file" id="imageInput" class="hidden-input" accept="image/*">
+    </div>
+
+    <div class="drop-zone" id="zipZone">
+        <span class="icon">📦</span>
+        <p>点击或拖拽<strong>压缩包文件</strong></p>
+        <span>支持 ZIP, 7Z, RAR</span>
+        <div id="zipName" class="file-info" style="display: none;"></div>
+        <input type="file" id="zipInput" class="hidden-input">
+    </div>
+
+    <button id="mergeBtn" disabled>合成并下载</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const zipInput = document.getElementById('zipInput');
+    const imageZone = document.getElementById('imageZone');
+    const zipZone = document.getElementById('zipZone');
+    const mergeBtn = document.getElementById('mergeBtn');
+
+    let files = { image: null, zip: null };
+
+    // 处理拖拽逻辑
+    [ {zone: imageZone, input: imageInput, key: 'image'}, 
+      {zone: zipZone, input: zipInput, key: 'zip'} ].forEach(({zone, input, key}) => {
+        
+        zone.addEventListener('click', () => input.click());
+
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        });
+
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            handleFile(e.dataTransfer.files[0], key);
+        });
+
+        input.addEventListener('change', (e) => handleFile(e.target.files[0], key));
+    });
+
+    function handleFile(file, key) {
+        if (!file) return;
+        files[key] = file;
+        
+        const infoDiv = document.getElementById(`${key}Name`);
+        infoDiv.style.display = 'block';
+        infoDiv.innerHTML = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        
+        checkReady();
+        showToast(`已选择${key === 'image' ? '图片' : '压缩包'}`);
+    }
+
+    function checkReady() {
+        mergeBtn.disabled = !(files.image && files.zip);
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.opacity = '1';
+        setTimeout(() => toast.style.opacity = '0', 2000);
+    }
+
+    mergeBtn.addEventListener('click', async () => {
+        try {
+            const imageBuffer = await files.image.arrayBuffer();
+            const zipBuffer = await files.zip.arrayBuffer();
+
+            const combinedBlob = new Blob([imageBuffer, zipBuffer], { type: files.image.type });
+            const url = URL.createObjectURL(combinedBlob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${files.zip.name}_${files.image.name}`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showToast("合成成功，正在导出...");
+        } catch (err) {
+            showToast("处理出错，请重试");
+        }
+    });
+</script>
+
+</body>
+</html>
