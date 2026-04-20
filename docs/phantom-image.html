@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幻影坦克高级合成器</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 { text-align: center; margin: 0 0 0.5rem 0; color: #0f172a; }
+        .subtitle { text-align: center; color: #64748b; margin-bottom: 2rem; font-size: 0.95rem; }
+
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--primary);
+            background: #eef2ff;
+            transform: scale(1.02);
+        }
+
+        .drop-zone img {
+            max-width: 100%;
+            max-height: 160px;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            border: none;
+            padding: 0.8rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-success { background: #10b981; color: white; display: none; }
+        .btn-success:hover { background: #059669; }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
+
+        #result-section {
+            margin-top: 1rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            display: none;
+        }
+
+        /* 预览控制栏 */
+        .preview-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+
+        .bg-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #cbd5e1;
+            cursor: pointer;
+        }
+        .bg-white { background: #fff; }
+        .bg-black { background: #000; }
+        .bg-grid { 
+            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 10px 10px;
+            background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+        }
+
+        /* 画布容器 */
+        .canvas-container {
+            display: inline-block;
+            padding: 20px;
+            border-radius: 0.5rem;
+            transition: background 0.3s;
+            max-width: 100%;
+        }
+
+        #outputCanvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .active-bg { outline: 2px solid var(--primary); outline-offset: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>幻影坦克合成器</h1>
+    <p class="subtitle">利用色阶分割与对角线像素排列，实现不同背景下的隐藏图片效果</p>
+
+    <div class="upload-section">
+        <div id="drop1" class="drop-zone">
+            <span><b>图 1</b> (白背景下显现)</span>
+            <input type="file" id="file1" hidden accept="image/*">
+            <img id="preview1">
+        </div>
+        <div id="drop2" class="drop-zone">
+            <span><b>图 2</b> (黑背景下显现)</span>
+            <input type="file" id="file2" hidden accept="image/*">
+            <img id="preview2">
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button id="processBtn" class="btn-primary" disabled>开始合成</button>
+        <button id="downloadBtn" class="btn-success">下载图片</button>
+    </div>
+
+    <div id="result-section">
+        <div class="preview-controls">
+            <span>预览背景：</span>
+            <div class="bg-btn bg-grid active-bg" data-bg="grid" title="透明格"></div>
+            <div class="bg-btn bg-white" data-bg="white" title="白色背景"></div>
+            <div class="bg-btn bg-black" data-bg="black" title="黑色背景"></div>
+        </div>
+        
+        <div class="canvas-container bg-grid" id="canvasWrapper">
+            <canvas id="outputCanvas"></canvas>
+        </div>
+        <p style="color: #64748b; font-size: 0.85rem; margin-top: 1rem;">提示：在不同预览背景下观察图片的变化</p>
+    </div>
+</div>
+
+<script>
+    const state = { img1: null, img2: null };
+    const drops = [document.getElementById('drop1'), document.getElementById('drop2')];
+    const inputs = [document.getElementById('file1'), document.getElementById('file2')];
+    const previews = [document.getElementById('preview1'), document.getElementById('preview2')];
+    const processBtn = document.getElementById('processBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('outputCanvas');
+    const canvasWrapper = document.getElementById('canvasWrapper');
+
+    // 1. 上传逻辑
+    drops.forEach((drop, i) => {
+        drop.onclick = () => inputs[i].click();
+        drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('dragover'); };
+        drop.ondragleave = () => drop.classList.remove('dragover');
+        drop.ondrop = (e) => {
+            e.preventDefault();
+            drop.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0], i);
+        };
+        inputs[i].onchange = (e) => handleFile(e.target.files[0], i);
+    });
+
+    function handleFile(file, index) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                state[`img${index + 1}`] = img;
+                previews[index].src = e.target.result;
+                previews[index].style.display = 'block';
+                drops[index].querySelector('span').style.display = 'none';
+                processBtn.disabled = !(state.img1 && state.img2);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 2. 合并逻辑
+    processBtn.onclick = () => {
+        const ctx = canvas.getContext('2d');
+        let tw = Math.max(state.img1.width, state.img2.width);
+        let th = Math.max(state.img1.height, state.img2.height);
+        if (tw % 2 !== 0) tw++; 
+        if (th % 2 !== 0) th++;
+
+        canvas.width = tw;
+        canvas.height = th;
+
+        // 获取灰度并映射色阶 (图1: 0-127, 图2: 128-255)
+        const data1 = getGrayScaleData(state.img1, tw, th, 0, 127);
+        const data2 = getGrayScaleData(state.img2, tw, th, 128, 255);
+
+        const output = ctx.createImageData(tw, th);
+        for (let i = 0; i < tw * th; i++) {
+            const x = i % tw;
+            const y = Math.floor(i / tw);
+            const idx = i * 4;
+            
+            if (x % 2 === y % 2) { // 正对角线
+                output.data[idx] = 0;
+                output.data[idx+1] = 0;
+                output.data[idx+2] = 0;
+                output.data[idx+3] = 255 - data1[i];
+            } else { // 反对角线
+                output.data[idx] = 255;
+                output.data[idx+1] = 255;
+                output.data[idx+2] = 255;
+                output.data[idx+3] = data2[i];
+            }
+        }
+
+        ctx.putImageData(output, 0, 0);
+        document.getElementById('result-section').style.display = 'block';
+        downloadBtn.style.display = 'flex';
+        canvas.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    function getGrayScaleData(img, tw, th, outMin, outMax) {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = tw;
+        offscreen.height = th;
+        const oCtx = offscreen.getContext('2d');
+        oCtx.drawImage(img, (tw - img.width) / 2, (th - img.height) / 2);
+        
+        const pixels = oCtx.getImageData(0, 0, tw, th).data;
+        const grayMap = new Uint8Array(tw * th);
+        for (let i = 0; i < pixels.length; i += 4) {
+            const gray = 0.299 * pixels[i] + 0.587 * pixels[i+1] + 0.114 * pixels[i+2];
+            grayMap[i / 4] = (gray / 255) * (outMax - outMin) + outMin;
+        }
+        return grayMap;
+    }
+
+    // 3. 预览控制
+    document.querySelectorAll('.bg-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active-bg'));
+            btn.classList.add('active-bg');
+            
+            const type = btn.getAttribute('data-bg');
+            canvasWrapper.className = 'canvas-container bg-' + type;
+        };
+    });
+
+    // 4. 下载逻辑
+    downloadBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.download = `mirage_tank_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+</script>
+
+</body>
+</html>
