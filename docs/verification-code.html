@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>验证码生成器</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+    }
+
+    body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+
+    .card {
+        backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 30px;
+        width: 360px;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: 500;
+    }
+
+    canvas {
+        display: block;
+        margin: 0 auto 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #fff;
+    }
+
+    .row {
+        margin-bottom: 12px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        outline: none;
+        font-size: 14px;
+    }
+
+    button {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: #fff;
+        color: #333;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .result {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 14px;
+        min-height: 20px;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>验证码生成器</h2>
+
+    <canvas id="captcha" width="200" height="60" title="点击刷新"></canvas>
+
+    <div class="row">
+        <input id="customText" placeholder="输入文本生成验证码（可选）">
+    </div>
+
+    <div class="row">
+        <button onclick="generate()">生成验证码</button>
+    </div>
+
+    <div class="row">
+        <input id="userInput" placeholder="输入验证码">
+    </div>
+
+    <div class="row">
+        <button onclick="verify()">验证</button>
+    </div>
+
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+const canvas = document.getElementById("captcha");
+const ctx = canvas.getContext("2d");
+
+let currentCode = "";
+
+// 随机字符
+function randomChar() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    return chars[Math.floor(Math.random() * chars.length)];
+}
+
+// 生成验证码
+function generate() {
+    const custom = document.getElementById("customText").value.trim();
+
+    if (custom) {
+        currentCode = custom;
+    } else {
+        currentCode = "";
+        for (let i = 0; i < 5; i++) {
+            currentCode += randomChar();
+        }
+    }
+
+    drawCaptcha(currentCode);
+}
+
+// 绘制验证码
+function drawCaptcha(text) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 背景
+    ctx.fillStyle = randomColor(180, 255);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 干扰线
+    for (let i = 0; i < 5; i++) {
+        ctx.strokeStyle = randomColor(100, 200);
+        ctx.beginPath();
+        ctx.moveTo(rand(0, 200), rand(0, 60));
+        ctx.lineTo(rand(0, 200), rand(0, 60));
+        ctx.stroke();
+    }
+
+    // 字符
+    for (let i = 0; i < text.length; i++) {
+        ctx.save();
+
+        ctx.fillStyle = randomColor(50, 160);
+        ctx.font = rand(24, 32) + "px Arial";
+
+        const x = 20 + i * 30;
+        const y = rand(30, 45);
+
+        const angle = rand(-30, 30) * Math.PI / 180;
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        ctx.fillText(text[i], 0, 0);
+
+        ctx.restore();
+    }
+
+    // 干扰点
+    for (let i = 0; i < 30; i++) {
+        ctx.fillStyle = randomColor(0, 255);
+        ctx.beginPath();
+        ctx.arc(rand(0, 200), rand(0, 60), 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// 验证
+function verify() {
+    const input = document.getElementById("userInput").value.trim();
+    const result = document.getElementById("result");
+
+    if (!input) {
+        result.innerText = "请输入验证码";
+        return;
+    }
+
+    if (input === currentCode) {
+        result.innerText = "✅ 验证成功";
+    } else {
+        result.innerText = "❌ 验证失败";
+    }
+}
+
+// 工具函数
+function rand(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+}
+
+function randomColor(min, max) {
+    const r = rand(min, max);
+    const g = rand(min, max);
+    const b = rand(min, max);
+    return `rgb(${r},${g},${b})`;
+}
+
+// 点击刷新
+canvas.addEventListener("click", generate);
+
+// 初始化
+generate();
+</script>
+
+</body>
+</html>
