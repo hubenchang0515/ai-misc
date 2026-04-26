@@ -57,7 +57,7 @@
                     <input type="file" id="file-input" class="hidden" accept="image/*">
                     <div class="text-slate-500 group-hover:text-emerald-600">
                         <svg class="w-12 h-12 mx-auto mb-3 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                        <p class="font-medium">拖拽图片到这里</p>
+                        <p class="font-medium">粘贴、拖拽或选择文件</p>
                         <p class="text-xs mt-1 text-slate-400">支持常用图片格式</p>
                     </div>
                 </div>
@@ -157,6 +157,8 @@
             }
         }
 
+        window.addEventListener('paste', (e) => handleFiles(e.clipboardData.files));
+
         function decodeFromUrl() {
             const url = document.getElementById('url-input').value;
             if (url) processImage(url);
@@ -182,8 +184,12 @@
                 }
             };
             img.onerror = () => {
-                resultSpan.className = "text-rose-400";
-                resultSpan.innerText = '图片加载失败 (请检查链接或跨域权限)';
+                img.src = `https://corsproxy.io/?url=${src}`;
+
+                img.onerror = () => {
+                    resultSpan.className = "text-rose-400";
+                    resultSpan.innerText = '图片加载失败 (请检查链接或跨域权限)';
+                }
             };
             img.src = src;
         }
