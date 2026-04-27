@@ -20,6 +20,7 @@ AI 生成的一些乱七八糟的应用
 * [PDF 浏览](https://hubenchang0515.github.io/ai-misc/pdf-view)
 * [二维码生成与解析](https://hubenchang0515.github.io/ai-misc/qrcode)
 * [赛车](https://hubenchang0515.github.io/ai-misc/race)
+* [赛车](https://hubenchang0515.github.io/ai-misc/random)
 * [舒尔特表测试](https://hubenchang0515.github.io/ai-misc/schulte-grid)
 * [贪吃蛇](https://hubenchang0515.github.io/ai-misc/snake)
 * [俄罗斯方块](https://hubenchang0515.github.io/ai-misc/tetris)
