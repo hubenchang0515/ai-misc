@@ -5,6 +5,7 @@ AI 生成的一些乱七八糟的应用
 * [四则运算限时训练](https://hubenchang0515.github.io/ai-misc/arithmetic)
 * [base32/base64 编解码](https://hubenchang0515.github.io/ai-misc/base32-64)
 * [压缩包伪装图片](https://hubenchang0515.github.io/ai-misc/compression-image)
+* [压缩包伪装图片](https://hubenchang0515.github.io/ai-misc/curl)
 * [表情包切割](https://hubenchang0515.github.io/ai-misc/cut-6x4)
 * [课程表制作](https://hubenchang0515.github.io/ai-misc/drag-class)
 * [画图](https://hubenchang0515.github.io/ai-misc/draw)
