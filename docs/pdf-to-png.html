@@ -3,17 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF 转 PNG 小工具</title>
+    <title>PDF to PNG Tool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; background-color: #f8f9fa; color: #333; line-height: 1.6; }
+        :root {
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --success: #28a745;
+            --success-hover: #218838;
+        }
+
+        /* 浅色模式变量 */
+        .theme-light {
+            --bg: #f8f9fa;
+            --text-main: #333;
+            --text-sub: #555;
+            --text-muted: #888;
+            --card-bg: #ffffff;
+            --drop-border: #007bff;
+            --drop-bg-hover: #e7f3ff;
+            --item-shadow: rgba(0,0,0,0.1);
+        }
+
+        /* 深色模式变量 */
+        .theme-dark {
+            --bg: #0f172a;
+            --text-main: #f1f5f9;
+            --text-sub: #cbd5e1;
+            --text-muted: #94a3b8;
+            --card-bg: #1e293b;
+            --drop-border: #38bdf8;
+            --drop-bg-hover: #334155;
+            --item-shadow: rgba(0,0,0,0.3);
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            padding: 20px; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
         .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: var(--primary); }
+        .header p { color: var(--text-sub); }
         
-        /* 拖拽区域样式 */
         .drop-zone {
-            background: white;
-            border: 2px dashed #007bff;
+            background: var(--card-bg);
+            border: 2px dashed var(--drop-border);
             border-radius: 12px;
             padding: 40px;
             text-align: center;
@@ -23,22 +65,21 @@
             position: relative;
         }
         .drop-zone.drag-over {
-            background: #e7f3ff;
-            border-color: #0056b3;
+            background: var(--drop-bg-hover);
             transform: scale(1.02);
         }
-        .drop-zone p { font-size: 18px; color: #555; margin: 10px 0; }
+        .drop-zone p { font-size: 18px; color: var(--text-sub); margin: 10px 0; }
         .drop-zone .icon { font-size: 48px; margin-bottom: 10px; display: block; }
-        #pdf-upload { display: none; } /* 隐藏原生输入框 */
+        #pdf-upload { display: none; }
 
         .status-bar { text-align: center; margin-bottom: 20px; min-height: 24px; }
-        #status-text { font-weight: 600; color: #007bff; }
+        #status-text { font-weight: 600; color: var(--primary); }
 
         .action-bar { text-align: center; margin-bottom: 30px; }
         #download-all-btn { 
             display: none;
             padding: 12px 30px; 
-            background: #28a745; 
+            background: var(--success); 
             color: white; 
             border: none; 
             border-radius: 25px; 
@@ -46,28 +87,29 @@
             font-weight: bold;
             cursor: pointer; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
         }
-        #download-all-btn:hover { background: #218838; transform: translateY(-1px); }
-        #download-all-btn:disabled { background: #ccc; transform: none}
+        #download-all-btn:hover { background: var(--success-hover); transform: translateY(-1px); }
+        #download-all-btn:disabled { background: #ccc; transform: none; cursor: not-allowed; }
 
         .image-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .page-item { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        .page-item { background: var(--card-bg); padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px var(--item-shadow); text-align: center; }
         .page-item img { width: 100%; border-radius: 4px; margin-bottom: 10px; }
-        .download-btn { font-size: 12px; color: #007bff; text-decoration: none; border: 1px solid #007bff; padding: 4px 10px; border-radius: 4px; }
-        .download-btn:hover { background: #007bff; color: white; }
+        .download-btn { font-size: 12px; color: var(--primary); text-decoration: none; border: 1px solid var(--primary); padding: 4px 10px; border-radius: 4px; transition: all 0.2s; }
+        .download-btn:hover { background: var(--primary); color: white; }
     </style>
 </head>
-<body>
+<body class="theme-light">
 
     <div class="header">
-        <h1>PDF 转图片工具</h1>
-        <p>安全、快速、无需上传服务器</p>
+        <h1 id="t-title">PDF 转图片工具</h1>
+        <p id="t-subtitle">安全、快速、无需上传服务器</p>
     </div>
 
     <div id="drop-zone" class="drop-zone">
         <span class="icon">📄</span>
-        <p>点击选择 或 将 PDF 文件拖拽到这里</p>
-        <p style="font-size: 14px; color: #888;">支持多页 PDF 自动拆分</p>
+        <p id="t-drop-main">点击选择 或 将 PDF 文件拖拽到这里</p>
+        <p id="t-drop-sub" style="font-size: 14px; color: var(--text-muted);">支持多页 PDF 自动拆分</p>
         <input type="file" id="pdf-upload" accept="application/pdf" />
     </div>
 
@@ -84,6 +126,69 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+        // --- 1. 国际化配置 ---
+        const i18n = {
+            zh: {
+                title: "PDF 转图片工具",
+                subtitle: "安全、快速、无需上传服务器",
+                dropMain: "点击选择 或 将 PDF 文件拖拽到这里",
+                dropSub: "支持多页 PDF 自动拆分",
+                statusReady: "准备就绪",
+                statusLoading: "🚀 正在加载 PDF...",
+                statusConverting: "⚡ 正在转换第 {curr} / {total} 页...",
+                statusDone: "✅ 完成！共生成 {total} 张图片",
+                statusError: "❌ 出错啦，请重试",
+                btnDownloadAll: "打包下载全部 PNG (.zip)",
+                btnCompressing: "正在压缩...",
+                btnDownloadSingle: "下载单页",
+                pagePrefix: "第",
+                pageSuffix: "页",
+                alertFormat: "请上传 PDF 格式的文件！"
+            },
+            en: {
+                title: "PDF to Image Converter",
+                subtitle: "Secure, Fast, and Serverless",
+                dropMain: "Click to select or drag PDF file here",
+                dropSub: "Supports multi-page PDF splitting",
+                statusReady: "Ready",
+                statusLoading: "🚀 Loading PDF...",
+                statusConverting: "⚡ Converting page {curr} / {total}...",
+                statusDone: "✅ Done! {total} images generated",
+                statusError: "❌ Error occurred, please try again",
+                btnDownloadAll: "Download All PNG (.zip)",
+                btnCompressing: "Compressing...",
+                btnDownloadSingle: "Download",
+                pagePrefix: "Page",
+                pageSuffix: "",
+                alertFormat: "Please upload a valid PDF file!"
+            }
+        };
+
+        // --- 2. 参数解析与环境初始化 ---
+        const params = new URLSearchParams(window.location.search);
+        
+        // 语言初始化
+        let langKey = params.get('language');
+        if (langKey !== 'zh' && langKey !== 'en') {
+            langKey = navigator.language.startsWith('zh') ? 'zh' : 'en';
+        }
+        const t = i18n[langKey];
+
+        // 主题初始化
+        let themeKey = params.get('theme');
+        if (themeKey !== 'light' && themeKey !== 'dark') {
+            themeKey = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.body.className = `theme-${themeKey}`;
+
+        // 静态文本填充
+        document.getElementById('t-title').innerText = t.title;
+        document.getElementById('t-subtitle').innerText = t.subtitle;
+        document.getElementById('t-drop-main').innerText = t.dropMain;
+        document.getElementById('t-drop-sub').innerText = t.dropSub;
+        document.getElementById('status-text').innerText = t.statusReady;
+        document.getElementById('download-all-btn').innerText = t.btnDownloadAll;
+
         const dropZone = document.getElementById('drop-zone');
         const uploadInput = document.getElementById('pdf-upload');
         const outputContainer = document.getElementById('output');
@@ -93,63 +198,51 @@
         let generatedImages = [];
         let currentFilename = "images";
 
-        // --- 核心：拖拽交互处理 ---
-
-        // 点击拖拽区域触发隐藏的 input
+        // --- 3. 交互逻辑 ---
         dropZone.addEventListener('click', () => uploadInput.click());
-
-        // 处理拖拽进入
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('drag-over');
         });
-
-        // 处理拖拽离开
         ['dragleave', 'drop', 'dragend'].forEach(type => {
             dropZone.addEventListener(type, () => dropZone.classList.remove('drag-over'));
         });
-
-        // 处理放下文件
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             const files = e.dataTransfer.files;
             if (files.length) handleFile(files[0]);
         });
-
-        // 处理点击上传
         uploadInput.addEventListener('change', (e) => {
             if (e.target.files.length) handleFile(e.target.files[0]);
         });
 
-        // --- 业务逻辑处理 ---
-
+        // --- 4. 业务逻辑 ---
         async function handleFile(file) {
             if (file.type !== 'application/pdf') {
-                alert('请上传 PDF 格式的文件！');
+                alert(t.alertFormat);
                 return;
             }
 
-            // 重置状态
             outputContainer.innerHTML = '';
             generatedImages = [];
             downloadAllBtn.style.display = 'none';
             currentFilename = file.name.replace(/\.[^/.]+$/, "");
             
             try {
-                statusText.textContent = '🚀 正在加载 PDF...';
+                statusText.textContent = t.statusLoading;
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 
                 for (let i = 1; i <= pdf.numPages; i++) {
-                    statusText.textContent = `⚡ 正在转换第 ${i} / ${pdf.numPages} 页...`;
+                    statusText.textContent = t.statusConverting.replace('{curr}', i).replace('{total}', pdf.numPages);
                     await renderPage(pdf, i);
                 }
 
-                statusText.textContent = `✅ 完成！共生成 ${pdf.numPages} 张图片`;
+                statusText.textContent = t.statusDone.replace('{total}', pdf.numPages);
                 downloadAllBtn.style.display = 'inline-block';
             } catch (err) {
                 console.error(err);
-                statusText.textContent = '❌ 出错啦，请重试';
+                statusText.textContent = t.statusError;
             }
         }
 
@@ -166,18 +259,17 @@
 
             generatedImages.push({ pageNum, dataUrl });
             
-            // UI 显示
             const div = document.createElement('div');
             div.className = 'page-item';
             div.innerHTML = `
                 <img src="${dataUrl}" />
-                <div style="margin-bottom:5px">第 ${pageNum} 页</div>
-                <a class="download-btn" href="${dataUrl}" download="${currentFilename}_${pageNum}.png">下载单页</a>
+                <div style="margin-bottom:5px; color: var(--text-sub); font-size: 14px;">${t.pagePrefix} ${pageNum} ${t.pageSuffix}</div>
+                <a class="download-btn" href="${dataUrl}" download="${currentFilename}_${pageNum}.png">${t.btnDownloadSingle}</a>
             `;
             outputContainer.appendChild(div);
         }
 
-        function download() {
+        function downloadWorkerScript() {
             importScripts('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
             self.onmessage = async (e) => {
                 const currentFilename = e.data[0];
@@ -202,12 +294,12 @@
             return new Worker(URL.createObjectURL(blob));
         }
 
-        // 打包下载
         downloadAllBtn.onclick = async () => {
             downloadAllBtn.disabled = true;
-            downloadAllBtn.textContent = '正在压缩...';
+            const originalText = t.btnDownloadAll;
+            downloadAllBtn.textContent = t.btnCompressing;
 
-            const worker = createWorker(download);
+            const worker = createWorker(downloadWorkerScript);
             worker.postMessage([currentFilename, generatedImages]);
             worker.onmessage = (e) => {
                 const url = e.data;
@@ -218,7 +310,7 @@
                 URL.revokeObjectURL(url);
                 
                 downloadAllBtn.disabled = false;
-                downloadAllBtn.textContent = '打包下载全部 PNG (.zip)';
+                downloadAllBtn.textContent = originalText;
             };
         };
     </script>
