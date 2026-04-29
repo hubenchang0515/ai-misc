@@ -3,58 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF 智能拼接 | 拖拽排序终极版</title>
+    <title>PDF Merge Tool</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --log-bg: #1e293b; --accent: #10b981; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
-        .container { max-width: 850px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        
-        /* 拖拽上传区 */
-        .drop-zone { 
-            border: 2px dashed #cbd5e1; padding: 30px; text-align: center; border-radius: 12px; 
-            cursor: pointer; background: #f1f5f9; transition: all 0.3s; margin-bottom: 20px;
+        :root {
+            --primary: #2563eb;
+            --accent: #10b981;
         }
-        .drop-zone.dragover { border-color: var(--primary); background: #eff6ff; }
 
-        /* 文件列表 */
-        .file-list { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .file-item { 
-            padding: 12px 15px; background: white; border-bottom: 1px solid #e2e8f0;
-            display: flex; align-items: center; justify-content: space-between;
-            cursor: grab; transition: background 0.2s;
+        /* 浅色模式变量 */
+        .theme-light {
+            --bg: #f8fafc;
+            --container-bg: #ffffff;
+            --text-main: #334155;
+            --text-sub: #64748b;
+            --drop-bg: #f1f5f9;
+            --drop-border: #cbd5e1;
+            --item-bg: #ffffff;
+            --item-border: #e2e8f0;
+            --log-bg: #1e293b;
+            --log-text: #94fbab;
         }
-        .file-item:active { cursor: grabbing; }
-        .file-item.dragging { opacity: 0.5; background: #ebf5ff; }
+
+        /* 深色模式变量 */
+        .theme-dark {
+            --bg: #0f172a;
+            --container-bg: #1e293b;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --drop-bg: #334155;
+            --drop-border: #475569;
+            --item-bg: #1e293b;
+            --item-border: #334155;
+            --log-bg: #020617;
+            --log-text: #4ade80;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        
+        .drop-zone { 
+            border: 2px dashed var(--drop-border);
+            padding: 30px;
+            text-align: center;
+            border-radius: 12px; 
+            cursor: pointer;
+            background: var(--drop-bg);
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        .drop-zone.dragover { border-color: var(--primary); background: rgba(37, 99, 235, 0.1); }
+
+        .file-list { margin-bottom: 20px; border: 1px solid var(--item-border); border-radius: 8px; }
+        .file-item { 
+            padding: 12px 15px;
+            background: var(--item-bg);
+            border-bottom: 1px solid var(--item-border);
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: grab;
+        }
+        .file-item.dragging { opacity: 0.5; background: rgba(37, 99, 235, 0.05); }
         .file-item:last-child { border-bottom: none; }
         
         .file-info { display: flex; align-items: center; gap: 10px; flex-grow: 1; pointer-events: none; }
-        .file-index { background: #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
+        .file-index { background: var(--drop-border); border-radius: 4px; padding: 2px 8px; font-size: 12px; color: var(--text-main); }
         
         .file-ops { display: flex; gap: 5px; pointer-events: auto; }
-        .btn-sm { padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; background: white; border-radius: 4px; cursor: pointer; }
-        .btn-sm:hover { background: #f1f5f9; border-color: var(--primary); }
+        .btn-sm { 
+            padding: 4px 8px; font-size: 12px;
+            border: 1px solid var(--drop-border);
+            background: var(--item-bg);
+            color: var(--text-main);
+            border-radius: 4px; cursor: pointer; 
+        }
+        .btn-sm:hover { background: var(--drop-bg); border-color: var(--primary); }
 
         #mergeBtn { 
             width: 100%; background: var(--accent); color: white; border: none; 
             padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;
         }
-        #mergeBtn:disabled { background: #94a3b8; }
+        #mergeBtn:disabled { background: #94a3b8; cursor: not-allowed; }
 
         .log-container { 
-            background: var(--log-bg); color: #94fbab; padding: 15px; border-radius: 8px; 
+            background: var(--log-bg); color: var(--log-text); padding: 15px; border-radius: 8px; 
             height: 180px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; 
         }
     </style>
 </head>
-<body>
+<body class="theme-light">
 
 <div class="container">
-    <h2 style="margin-top:0">PDF 智能拼接 <small style="font-weight:normal; font-size:14px; color:#64748b">支持拖拽文件排序</small></h2>
+    <h2 style="margin-top:0"><span id="t-title">PDF 智能拼接</span> <small id="t-subtitle" style="font-weight:normal; font-size:14px; color:var(--text-sub)">支持拖拽文件排序</small></h2>
     
     <div class="drop-zone" id="dropZone">
-        <p>拖拽多个 PDF 至此 (自动按名称排序) 或 <b>点击上传</b></p>
+        <p id="t-drop-text">拖拽多个 PDF 至此 (自动按名称排序) 或 <b>点击上传</b></p>
         <input type="file" id="fileInput" multiple accept=".pdf" style="display:none">
     </div>
 
@@ -62,18 +120,71 @@
 
     <button id="mergeBtn" onclick="executeMerge()">合并 PDF 并重构书签</button>
 
-    <div class="log-container" id="logBox">准备就绪。请添加 PDF 文件。</div>
+    <div class="log-container" id="logBox"></div>
 </div>
 
 <script>
     const { PDFDocument, PDFName, PDFString, PDFNumber, PDFArray, PDFHexString } = PDFLib;
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    let selectedFiles = [];
-    const logBox = document.getElementById('logBox');
-    const fileListEl = document.getElementById('fileList');
+    // --- 1. 多语言与主题配置 ---
+    const i18n = {
+        zh: {
+            title: "PDF 智能拼接",
+            subtitle: "支持拖拽文件排序",
+            drop: "拖拽多个 PDF 至此 (自动按名称排序) 或 <b>点击上传</b>",
+            btnMerge: "合并 PDF 并重构书签",
+            ready: "准备就绪。请添加 PDF 文件。",
+            addCount: "添加了 {count} 个文件并已按名称预排序",
+            start: "正在启动合并流程...",
+            reading: "正在读取: ",
+            merging: "合并完成。正在重构 {count} 个书签节点...",
+            done: "✅ 任务圆满完成！",
+            error: "❌ 错误: ",
+            minFiles: "请至少添加两个 PDF 进行合并"
+        },
+        en: {
+            title: "Smart PDF Merge",
+            subtitle: "Drag & Drop sorting supported",
+            drop: "Drop multiple PDFs here (Auto-sorted by name) or <b>Click to upload</b>",
+            btnMerge: "Merge PDFs & Reconstruct Bookmarks",
+            ready: "Ready. Please add PDF files.",
+            addCount: "Added {count} files, pre-sorted by name",
+            start: "Starting merge process...",
+            reading: "Reading: ",
+            merging: "Merge complete. Reconstructing {count} bookmark nodes...",
+            done: "✅ Task completed successfully!",
+            error: "❌ Error: ",
+            minFiles: "Please add at least two PDF files to merge"
+        }
+    };
 
-    // --- 拖拽上传逻辑 ---
+    // 参数与系统检测
+    const params = new URLSearchParams(window.location.search);
+    let lang = params.get('language');
+    if (lang !== 'zh' && lang !== 'en') {
+        lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+    }
+    const t = i18n[lang];
+
+    let theme = params.get('theme');
+    if (theme !== 'light' && theme !== 'dark') {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    // 应用 UI
+    document.body.className = `theme-${theme}`;
+    document.getElementById('t-title').innerText = t.title;
+    document.getElementById('t-subtitle').innerText = t.subtitle;
+    document.getElementById('t-drop-text').innerHTML = t.drop;
+    document.getElementById('mergeBtn').innerText = t.btnMerge;
+
+    const logBox = document.getElementById('logBox');
+    logBox.innerText = t.ready;
+
+    // --- 2. 原有逻辑适配 ---
+    let selectedFiles = [];
+    const fileListEl = document.getElementById('fileList');
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
@@ -89,18 +200,14 @@
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => handleNewFiles(Array.from(fileInput.files)));
 
-    // --- 文件处理与初始化排序 ---
     function handleNewFiles(files) {
         const pdfs = files.filter(f => f.type === "application/pdf");
-        // 关键逻辑：对本次选中的多个文件按名称排序
         pdfs.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-        
         selectedFiles = [...selectedFiles, ...pdfs];
         renderList();
-        addLog(`添加了 ${pdfs.length} 个文件并已按名称预排序`);
+        addLog(t.addCount.replace('{count}', pdfs.length));
     }
 
-    // --- 拖拽列表排序逻辑 (HTML5 Drag and Drop) ---
     function renderList() {
         fileListEl.innerHTML = '';
         selectedFiles.forEach((file, index) => {
@@ -119,14 +226,11 @@
                     <button class="btn-sm" style="color:#ef4444" onclick="removeFile(${index})">✕</button>
                 </div>
             `;
-
-            // 拖拽事件
             item.addEventListener('dragstart', (e) => {
                 e.target.classList.add('dragging');
                 e.dataTransfer.setData('text/plain', index);
             });
             item.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
-            
             fileListEl.appendChild(item);
         });
     }
@@ -144,11 +248,9 @@
 
     fileListEl.addEventListener('drop', e => {
         e.preventDefault();
-        // 重新同步 selectedFiles 数组顺序
         const items = Array.from(fileListEl.querySelectorAll('.file-item'));
-        const newOrder = items.map(item => selectedFiles[parseInt(item.dataset.index)]);
-        selectedFiles = newOrder;
-        renderList(); // 刷新以更新序号
+        selectedFiles = items.map(item => selectedFiles[parseInt(item.dataset.index)]);
+        renderList();
     });
 
     function getDragAfterElement(container, y) {
@@ -164,7 +266,6 @@
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    // --- 传统按钮排序 ---
     window.move = (index, dir) => {
         const newIndex = index + dir;
         if (newIndex >= 0 && newIndex < selectedFiles.length) {
@@ -188,29 +289,22 @@
     function longestCommonPrefix(strs) {
         if (!strs || strs.length === 0) return "";
         if (strs.length === 1) return strs[0];
-        
-        // 以第一个字符串为基准
         for (let i = 0; i < strs[0].length; i++) {
             const char = strs[0][i];
-            // 检查其他字符串的相同位置
             for (let j = 1; j < strs.length; j++) {
-                // 如果当前位置超出其他字符串长度，或者字符不匹配
-                if (i >= strs[j].length || strs[j][i] !== char) {
-                    return strs[0].substring(0, i);
-                }
+                if (i >= strs[j].length || strs[j][i] !== char) return strs[0].substring(0, i);
             }
         }
-        
         return strs[0];
     }
 
-    // --- 核心合并与书签重构逻辑 (维持之前所有优化) ---
+    // --- 3. 核心合并逻辑 ---
     async function executeMerge() {
-        if (selectedFiles.length < 2) return alert("请至少添加两个 PDF 进行合并");
+        if (selectedFiles.length < 2) return alert(t.minFiles);
         const btn = document.getElementById('mergeBtn');
         btn.disabled = true;
         logBox.innerHTML = '';
-        addLog("正在启动合并流程...");
+        addLog(t.start);
 
         try {
             const mergedDoc = await PDFDocument.create();
@@ -218,40 +312,36 @@
             const combinedOutlines = [];
 
             for (const file of selectedFiles) {
-                addLog(`正在读取: ${file.name}`);
+                addLog(`${t.reading}${file.name}`);
                 const data = await file.arrayBuffer();
-                
-                // 1. 获取书签并根据当前偏移量平移
                 const rawOutline = await fetchOutlineData(data);
                 combinedOutlines.push(...shiftOutlinePages(rawOutline, totalPageOffset));
-
-                // 2. 复制页面并插入
                 const srcDoc = await PDFDocument.load(data);
                 const pages = await mergedDoc.copyPages(srcDoc, srcDoc.getPageIndices());
                 pages.forEach(p => mergedDoc.addPage(p));
-
                 totalPageOffset += srcDoc.getPageCount();
             }
 
-            // 3. 构建书签字典
             if (combinedOutlines.length > 0) {
-                addLog(`合并完成。正在重构 ${combinedOutlines.length} 个书签节点...`);
+                addLog(t.merging.replace('{count}', combinedOutlines.length));
                 const pageRefs = mergedDoc.getPages().map(p => p.ref);
                 const pages = mergedDoc.getPages();
                 injectOutlines(mergedDoc, combinedOutlines, pageRefs, pages);
             }
 
-            const name = longestCommonPrefix(selectedFiles.flatMap(f => f.name)) || `Merged_Book_${Date.now()}`;
+            const prefix = longestCommonPrefix(selectedFiles.flatMap(f => f.name)).replace(/[\W_]+$/, "");
+            const finalName = (prefix || "Merged_PDF") + ".pdf";
+            
             const bytes = await mergedDoc.save();
             const blob = new Blob([bytes], { type: "application/pdf" });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = name + '.pdf'
+            link.download = finalName;
             link.click();
-            addLog("✅ 任务圆满完成！");
+            addLog(t.done);
 
         } catch (e) {
-            addLog(`❌ 错误: ${e.message}`);
+            addLog(`${t.error}${e.message}`);
         } finally {
             btn.disabled = false;
         }
@@ -302,7 +392,7 @@
                     dest.push(pageRefs[item.pageIdx]);
                     dest.push(PDFName.of('XYZ'));
                     dest.push(PDFNumber.of(0)); 
-                    dest.push(PDFNumber.of(h)); // 顶部对齐
+                    dest.push(PDFNumber.of(h));
                     dest.push(PDFNumber.of(0));
                     dict.set(PDFName.of('Dest'), dest);
                 }
@@ -323,22 +413,10 @@
             }
             return { first, last };
         }
-
         const res = createTree(outlineData, rootRef);
         rootDict.set(PDFName.of('First'), res.first);
         rootDict.set(PDFName.of('Last'), res.last);
         pdfDoc.catalog.set(PDFName.of('Outlines'), rootRef);
-    }
-
-    function toUtf16String(t) {
-        const b = new Uint8Array(t.length * 2 + 2);
-        b[0] = 0xFE; b[1] = 0xFF;
-        for (let i = 0; i < t.length; i++) {
-            const c = t.charCodeAt(i);
-            b[i * 2 + 2] = (c >> 8) & 0xFF;
-            b[i * 2 + 3] = c & 0xFF;
-        }
-        return PDFString.of(Array.from(b).map(x => String.fromCharCode(x)).join(''));
     }
 
     function countTotalNodes(items) {
