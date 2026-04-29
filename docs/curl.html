@@ -239,9 +239,16 @@
             <label data-i18n="proxy">代理服务器 (-x)</label>
             <input type="text" id="proxy" placeholder="http://127.0.0.1:8080">
         </div>
+    </div>
+
+    <div class="row form-group">
         <div class="flex-1">
             <label data-i18n="uploadFile">上传文件路径 (-T)</label>
-            <input type="text" id="upload-file" placeholder="./data.json">
+            <input type="text" id="upload-file" placeholder="./input.json">
+        </div>
+        <div class="flex-1">
+            <label data-i18n="outputFile">输出文件路径 (-T)</label>
+            <input type="text" id="output-file" placeholder="./output.json">
         </div>
     </div>
 
@@ -297,6 +304,7 @@
             userAgent: "User-Agent (-A)",
             proxy: "代理服务器 (-x)",
             uploadFile: "上传文件路径 (-T)",
+            outputFile: "输出文件路径 (-o)",
             headers: "请求头 (Headers)",
             addHeader: "添加 Header",
             headerKey: "键 (如 Content-Type)",
@@ -318,6 +326,7 @@
             userAgent: "User-Agent (-A)",
             proxy: "Proxy (-x)",
             uploadFile: "Upload File Path (-T)",
+            outputFile: "Output Fule Path (-o)",
             headers: "Headers",
             addHeader: "Add Header",
             headerKey: "Key (e.g. Content-Type)",
@@ -372,6 +381,7 @@
         document.getElementById('user-agent'),
         document.getElementById('proxy'),
         document.getElementById('upload-file'),
+        document.getElementById('output-file'),
         document.getElementById('body'),
         document.getElementById('flag-location'),
         document.getElementById('flag-insecure'),
@@ -424,6 +434,7 @@
         const ua = document.getElementById('user-agent').value.trim();
         const proxy = document.getElementById('proxy').value.trim();
         const upload = document.getElementById('upload-file').value.trim();
+        const output = document.getElementById('output-file').value.trim();
         const body = document.getElementById('body').value;
         const custom = document.getElementById('custom-options').value.trim();
         
@@ -438,6 +449,7 @@
         if (ua) cmd.push(`-A ${escapeShellArg(ua)}`);
         if (proxy) cmd.push(`-x ${escapeShellArg(proxy)}`);
         if (upload) cmd.push(`-T ${escapeShellArg(upload)}`);
+        if (output) cmd.push(`-o ${escapeShellArg(output)}`);
 
         // Flags
         if (document.getElementById('flag-location').checked) cmd.push('-L');
