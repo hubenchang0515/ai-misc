@@ -3,82 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>极简二维码工具</title>
+    <title>QR Toolbox</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        // 配置 Tailwind 深色模式
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <style>
         .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+        .dark .drag-over { background-color: #1e293b !important; }
         #qrcode img, #qrcode canvas { margin: 0 auto; border: 8px solid white; border-radius: 4px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen py-10 px-4 font-sans">
+<body class="bg-slate-50 dark:bg-slate-950 min-h-screen py-10 px-4 font-sans transition-colors duration-300">
 
     <div class="max-w-4xl mx-auto">
         <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">QR Toolbox</h1>
-            <p class="text-slate-500 text-lg">生成与解析 · 纯前端处理 · 保护隐私</p>
+            <h1 class="text-4xl font-extrabold text-slate-800 dark:text-slate-100 mb-2 tracking-tight">QR Toolbox</h1>
+            <p id="t-subtitle" class="text-slate-500 dark:text-slate-400 text-lg">生成与解析 · 纯前端处理 · 保护隐私</p>
         </header>
 
         <div class="grid lg:grid-cols-2 gap-8">
-            
-            <section class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <section class="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center mb-6">
-                    <div class="bg-blue-600 p-2 rounded-lg mr-3 shadow-lg shadow-blue-200">
+                    <div class="bg-blue-600 p-2 rounded-lg mr-3 shadow-lg shadow-blue-200 dark:shadow-none">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-slate-800">生成二维码</h2>
+                    <h2 id="t-gen-title" class="text-2xl font-bold text-slate-800 dark:text-slate-100">生成二维码</h2>
                 </div>
 
                 <textarea id="text-input" rows="4" 
-                    class="w-full p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none mb-6 text-slate-700 bg-slate-50"
+                    class="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-blue-500 outline-none transition-all resize-none mb-6 text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800"
                     placeholder="请输入文本或网址..."></textarea>
                 
-                <button onclick="generateQR()" 
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-blue-100">
+                <button id="t-btn-gen" onclick="generateQR()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-blue-100 dark:shadow-none">
                     立即生成
                 </button>
 
-                <div id="qrcode-wrapper" class="mt-8 flex flex-col items-center justify-center min-h-[220px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 aspect-square">
+                <div id="qrcode-wrapper" class="mt-8 flex flex-col items-center justify-center min-h-[220px] bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-100 dark:border-slate-700 aspect-square">
                     <div id="qrcode"></div>
-                    <p id="qr-placeholder" class="text-slate-400 text-sm mt-2">等待内容输入...</p>
+                    <p id="qr-placeholder" class="text-slate-400 dark:text-slate-500 text-sm mt-2">等待内容输入...</p>
                 </div>
             </section>
 
-            <section class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <section class="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center mb-6">
-                    <div class="bg-emerald-500 p-2 rounded-lg mr-3 shadow-lg shadow-emerald-100">
+                    <div class="bg-emerald-500 p-2 rounded-lg mr-3 shadow-lg shadow-emerald-100 dark:shadow-none">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-slate-800">解析二维码</h2>
+                    <h2 id="t-dec-title" class="text-2xl font-bold text-slate-800 dark:text-slate-100">解析二维码</h2>
                 </div>
                 
-                <div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all group bg-slate-50">
+                <div id="drop-zone" class="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-800 transition-all group bg-slate-50 dark:bg-slate-800">
                     <input type="file" id="file-input" class="hidden" accept="image/*">
-                    <div class="text-slate-500 group-hover:text-emerald-600">
+                    <div class="text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
                         <svg class="w-12 h-12 mx-auto mb-3 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                        <p class="font-medium">粘贴、拖拽或选择文件</p>
-                        <p class="text-xs mt-1 text-slate-400">支持常用图片格式</p>
+                        <p id="t-drop-text" class="font-medium">粘贴、拖拽或选择文件</p>
+                        <p id="t-drop-sub" class="text-xs mt-1 text-slate-400">支持常用图片格式</p>
                     </div>
                 </div>
 
                 <div class="relative my-8 text-center">
-                    <span class="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-100"></span>
-                    <span class="relative bg-white px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">OR</span>
+                    <span class="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-100 dark:border-slate-800"></span>
+                    <span class="relative bg-white dark:bg-slate-900 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">OR</span>
                 </div>
 
                 <div class="flex gap-2 mb-6">
                     <input type="text" id="url-input" 
-                        class="flex-1 p-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none text-sm bg-slate-50"
+                        class="flex-1 p-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none text-sm bg-slate-50 dark:bg-slate-800 dark:text-slate-200"
                         placeholder="输入图片 URL...">
-                    <button onclick="decodeFromUrl()" class="bg-slate-800 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-slate-900 transition-all active:scale-[0.95]">
+                    <button id="t-btn-dec" onclick="decodeFromUrl()" class="bg-slate-800 dark:bg-slate-700 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-slate-900 dark:hover:bg-slate-600 transition-all active:scale-[0.95]">
                         解析
                     </button>
                 </div>
 
                 <div class="space-y-2">
-                    <label class="text-xs font-black text-slate-400 uppercase tracking-tighter">Result / 解析结果</label>
-                    <div class="p-5 bg-slate-50 text-slate-400 rounded-2xl break-all min-h-[150px] text-sm font-mono leading-relaxed shadow-inner">
+                    <label id="t-label-res" class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Result / 解析结果</label>
+                    <div class="p-5 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-2xl break-all min-h-[150px] text-sm font-mono leading-relaxed shadow-inner border border-transparent dark:border-slate-700">
                         <span id="result">等待解析...</span>
                     </div>
                 </div>
@@ -89,10 +95,81 @@
     <canvas id="temp-canvas" class="hidden"></canvas>
 
     <script>
-        /**
-         * 修复后的生成逻辑
-         * 不再使用持久化的对象，而是按需创建，避免库内部状态冲突
-         */
+        // --- 1. 多语言与主题初始化 ---
+        const i18n = {
+            zh: {
+                subtitle: "生成与解析 · 纯前端处理 · 保护隐私",
+                genTitle: "生成二维码",
+                genPlaceholder: "请输入文本或网址...",
+                btnGen: "立即生成",
+                qrWait: "等待内容输入...",
+                decTitle: "解析二维码",
+                dropText: "粘贴、拖拽或选择文件",
+                dropSub: "支持常用图片格式",
+                urlPlaceholder: "输入图片 URL...",
+                btnDec: "解析",
+                labelRes: "Result / 解析结果",
+                resWait: "等待解析...",
+                resScanning: "正在扫描图片...",
+                resError: "未发现有效的二维码",
+                resFail: "图片加载失败 (请检查链接或跨域权限)",
+                alertInput: "请先输入内容再生成",
+                alertGenErr: "生成二维码时出错"
+            },
+            en: {
+                subtitle: "Generate & Decode · Client-side · Privacy First",
+                genTitle: "Generate QR",
+                genPlaceholder: "Enter text or URL...",
+                btnGen: "Generate Now",
+                qrWait: "Waiting for input...",
+                decTitle: "Decode QR",
+                dropText: "Paste, drag or select file",
+                dropSub: "Supports common image formats",
+                urlPlaceholder: "Enter image URL...",
+                btnDec: "Decode",
+                labelRes: "Result / Decoded Content",
+                resWait: "Waiting to decode...",
+                resScanning: "Scanning image...",
+                resError: "No valid QR code found",
+                resFail: "Image load failed (check URL or CORS)",
+                alertInput: "Please enter content first",
+                alertGenErr: "Error generating QR code"
+            }
+        };
+
+        const params = new URLSearchParams(window.location.search);
+        
+        // 语言设置
+        let lang = params.get('language');
+        if (lang !== 'zh' && lang !== 'en') {
+            lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+        }
+        const t = i18n[lang];
+
+        // 主题设置
+        let theme = params.get('theme');
+        if (theme !== 'light' && theme !== 'dark') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        // 应用 UI 文本
+        document.getElementById('t-subtitle').innerText = t.subtitle;
+        document.getElementById('t-gen-title').innerText = t.genTitle;
+        document.getElementById('text-input').placeholder = t.genPlaceholder;
+        document.getElementById('t-btn-gen').innerText = t.btnGen;
+        document.getElementById('qr-placeholder').innerText = t.qrWait;
+        document.getElementById('t-dec-title').innerText = t.decTitle;
+        document.getElementById('t-drop-text').innerText = t.dropText;
+        document.getElementById('t-drop-sub').innerText = t.dropSub;
+        document.getElementById('url-input').placeholder = t.urlPlaceholder;
+        document.getElementById('t-btn-dec').innerText = t.btnDec;
+        document.getElementById('t-label-res').innerText = t.labelRes;
+        document.getElementById('result').innerText = t.resWait;
+
+        // 应用主题类
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+
+        // --- 2. 原有逻辑适配 ---
         function generateQR() {
             const textInput = document.getElementById("text-input");
             const qrContainer = document.getElementById("qrcode");
@@ -100,28 +177,23 @@
             const text = textInput.value.trim();
 
             if (!text) {
-                alert("请先输入内容再生成");
+                alert(t.alertInput);
                 return;
             }
 
-            // 1. 清空旧内容
             qrContainer.innerHTML = "";
             placeholder.style.display = "none";
 
-            // 2. 重新实例化（这样最稳）
             QRCode.toDataURL(text, (err, url) => {
                 if (err) {
                     console.error("生成失败:", err);
-                    alert("生成二维码时出错");
+                    alert(t.alertGenErr);
                 } else {
                     qrContainer.innerHTML = `<img src="${url}"/>`
                 }
             });
         }
 
-        /**
-         * 解析逻辑 (保持健壮性)
-         */
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const resultSpan = document.getElementById('result');
@@ -131,7 +203,6 @@
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = e => handleFiles(e.target.files);
 
-        // 拖拽手感优化
         ['dragenter', 'dragover'].forEach(n => {
             dropZone.addEventListener(n, e => {
                 e.preventDefault();
@@ -165,7 +236,7 @@
         }
 
         function processImage(src) {
-            resultSpan.innerText = '正在扫描图片...';
+            resultSpan.innerText = t.resScanning;
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.onload = () => {
@@ -176,19 +247,18 @@
                 const code = jsQR(imgData.data, imgData.width, imgData.height);
 
                 if (code) {
-                    resultSpan.className = "text-slate-950";
+                    resultSpan.className = "text-slate-950 dark:text-slate-200";
                     resultSpan.innerText = code.data;
                 } else {
                     resultSpan.className = "text-rose-400";
-                    resultSpan.innerText = '未发现有效的二维码';
+                    resultSpan.innerText = t.resError;
                 }
             };
             img.onerror = () => {
                 img.src = `https://corsproxy.io/?url=${src}`;
-
                 img.onerror = () => {
                     resultSpan.className = "text-rose-400";
-                    resultSpan.innerText = '图片加载失败 (请检查链接或跨域权限)';
+                    resultSpan.innerText = t.resFail;
                 }
             };
             img.src = src;
