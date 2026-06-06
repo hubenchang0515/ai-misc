@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薪资计算器 | Salary Calculator</title>
+    <style>
+        /* 现代 CSS 变量，用于实现高级美观的主题切换 */
+        :root {
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-input: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-gradient: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            --text-on-primary: #ffffff;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --radius: 12px;
+        }
+
+        :root.dark {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --primary-light: #1e293b;
+            --text-on-primary: #ffffff;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* 顶部通栏 */
+        header {
+            background: var(--bg-card);
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .logo-area svg {
+            color: var(--primary);
+            width: 28px;
+            height: 28px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        select, button, input {
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.6rem;
+        }
+
+        /* 主体双栏布局 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 850px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .card:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.5rem;
+            border-b: 2px solid var(--bg-body);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 表单与输入框 */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 550px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        .input-prefix {
+            position: absolute;
+            left: 0.6rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .input-suffix {
+            position: absolute;
+            right: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* 快捷恢复按钮样式 */
+        .btn-restore {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid transparent;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+        .btn-restore:hover {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        /* 表格样式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            background-color: var(--bg-input);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        th:first-child { border-radius: 6px 0 0 6px; }
+        th:last-child { border-radius: 0 6px 6px 0; }
+
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-input {
+            width: 70px;
+            padding: 0.4rem;
+            text-align: center;
+        }
+
+        /* 右侧高亮总览卡片 */
+        .summary-card {
+            background: var(--primary-gradient);
+            color: var(--text-on-primary);
+            border: none;
+        }
+
+        .summary-card .card-title {
+            color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .net-salary-title {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 0.25rem;
+        }
+
+        .net-salary-val {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .summary-item:last-of-type {
+            border-bottom: none;
+        }
+
+        .summary-total-cost {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        /* 隐藏数字输入框默认微调按钮 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo-area">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span data-i18n="title">薪资计算器</span>
+        </div>
+        <div class="controls" style="visibility: hidden;">
+            <select id="langSelect">
+                <option value="zh">🇨🇳 中文</option>
+                <option value="en">🇺🇸 English</option>
+            </select>
+            <button id="themeBtn" class="btn-toggle">☀️</button>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <div class="left-panel">
+            <div class="card">
+                <div class="card-title" data-i18n="basic_info">基本信息</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label data-i18n="pre_tax">税前工资</label>
+                        <div class="input-wrapper">
+                            <span class="input-prefix">¥</span>
+                            <input type="number" id="preTax" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><span data-i18n="base">五险一金基数</span> <span style="font-size: 0.75rem; opacity:0.7" data-i18n="base_hint">(默认同税前)</span></label>
+                        <div class="input-wrapper">
+                            <span class="input-prefix">¥</span>
+                            <input type="number" id="baseInput" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label data-i18n="probation_ratio">试用期工资比例</label>
+                            <button class="btn-restore" id="restoreProbBtn" data-i18n="restore_full">满额</button>
+                        </div>
+                        <div class="input-wrapper">
+                            <input type="number" id="probRatio" value="100">
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label data-i18n="work_days">当月出勤天数</label>
+                            <button class="btn-restore" id="restoreDaysBtn" data-i18n="restore_full">满额</button>
+                        </div>
+                        <div class="input-wrapper">
+                            <input type="number" id="workDays" value="21.75" step="0.5">
+                            <span class="input-suffix">天</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" data-i18n="insurance_rates">五险一金比例设置</div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="insurance_type">项目</th>
+                                <th data-i18n="indiv_rate">个人比例 (%)</th>
+                                <th data-i18n="comp_rate">企业比例 (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ratesTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="card summary-card">
+                <div class="net-salary-title" data-i18n="net_salary">税后到手工资</div>
+                <div class="net-salary-val">¥ <span id="resNetSalary">0.00</span></div>
+                
+                <div class="summary-item">
+                    <span data-i18n="actual_gross">应发工资</span>
+                    <span id="resActualGross">¥ 0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span data-i18n="tax">个人所得税</span>
+                    <span id="resTax">¥ 0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span data-i18n="indiv_total">个人缴纳合计</span>
+                    <span id="resIndivTotal">¥ 0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span data-i18n="comp_total">企业缴纳合计</span>
+                    <span id="resCompTotal">¥ 0.00</span>
+                </div>
+                <div class="summary-item summary-total-cost">
+                    <span data-i18n="comp_cost">企业总用工成本</span>
+                    <span id="resCompCost">¥ 0.00</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" data-i18n="breakdown">缴费金额明细</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-i18n="insurance_type">项目</th>
+                            <th style="text-align: right;" data-i18n="indiv_pay">个人缴纳</th>
+                            <th style="text-align: right;" data-i18n="comp_pay">企业缴纳</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdownTableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 多语言词典
+    const dictionary = {
+        zh: {
+            title: "薪资计算器",
+            basic_info: "基本信息",
+            pre_tax: "税前工资",
+            base: "五险一金基数",
+            base_hint: "(默认同税前)",
+            probation_ratio: "试用期工资比例",
+            work_days: "当月出勤天数",
+            restore_full: "满额",
+            insurance_rates: "五险一金比例设置",
+            insurance_type: "项目",
+            indiv_rate: "个人比例 (%)",
+            comp_rate: "企业比例 (%)",
+            pension: "养老保险",
+            medical: "医疗保险",
+            unemp: "失业保险",
+            injury: "工伤保险",
+            maternity: "生育保险",
+            fund: "住房公积金",
+            net_salary: "税后到手工资",
+            actual_gross: "应发工资",
+            tax: "个人所得税",
+            indiv_total: "个人缴纳合计",
+            comp_total: "企业缴纳合计",
+            comp_cost: "企业总用工成本",
+            breakdown: "缴费金额明细",
+            indiv_pay: "个人缴纳",
+            comp_pay: "企业缴纳"
+        },
+        en: {
+            title: "Salary Calculator",
+            basic_info: "Basic Information",
+            pre_tax: "Pre-tax Salary",
+            base: "Insurance Base",
+            base_hint: "(Default: Pre-tax)",
+            probation_ratio: "Probation Ratio",
+            work_days: "Work Days",
+            restore_full: "Full",
+            insurance_rates: "Insurance Contribution Rates",
+            insurance_type: "Type",
+            indiv_rate: "Indiv. (%)",
+            comp_rate: "Comp. (%)",
+            pension: "Pension",
+            medical: "Medical",
+            unemp: "Unemployment",
+            injury: "Work Injury",
+            maternity: "Maternity",
+            fund: "Housing Fund",
+            net_salary: "Net Take-home Salary",
+            actual_gross: "Actual Gross",
+            tax: "Income Tax",
+            indiv_total: "Total Indiv. Insurances",
+            comp_total: "Total Comp. Insurances",
+            comp_cost: "Total Employer Cost",
+            breakdown: "Contribution Breakdown",
+            indiv_pay: "Individual",
+            comp_pay: "Company"
+        }
+    };
+
+    // 2. 初始化核心数据状态
+    let currentLang = 'zh';
+    let currentTheme = 'light';
+
+    const defaultRates = {
+        pension: { indiv: 8, comp: 16 },
+        medical: { indiv: 2, comp: 8 },
+        unemp: { indiv: 0.2, comp: 0.8 },
+        injury: { indiv: 0, comp: 0.4 },
+        maternity: { indiv: 0, comp: 0.5 },
+        fund: { indiv: 8, comp: 8 }
+    };
+
+    // 3. DOM 缓存获取
+    const preTaxInput = document.getElementById('preTax');
+    const baseInput = document.getElementById('baseInput');
+    const probRatioInput = document.getElementById('probRatio');
+    const workDaysInput = document.getElementById('workDays');
+    const ratesTableBody = document.getElementById('ratesTableBody');
+    const breakdownTableBody = document.getElementById('breakdownTableBody');
+    const langSelect = document.getElementById('langSelect');
+    const themeBtn = document.getElementById('themeBtn');
+
+    // 快捷按钮 DOM
+    const restoreProbBtn = document.getElementById('restoreProbBtn');
+    const restoreDaysBtn = document.getElementById('restoreDaysBtn');
+
+    // 4. 环境参数解析 (Language & Theme)
+    function initEnvironment() {
+        const params = new URLSearchParams(window.location.search);
+        
+        // 语言解析
+        let lang = params.get('language');
+        if (lang !== 'zh' && lang !== 'en') {
+            lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+        }
+        currentLang = lang;
+        langSelect.value = lang;
+
+        // 主题解析
+        let theme = params.get('theme');
+        if (theme !== 'dark' && theme !== 'light') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        setTheme(theme);
+    }
+
+    function setTheme(theme) {
+        currentTheme = theme;
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            themeBtn.innerText = '🌙';
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeBtn.innerText = '☀️';
+        }
+    }
+
+    // 5. 国际化翻译更新
+    function updateUIStrings() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (dictionary[currentLang][key]) {
+                el.innerText = dictionary[currentLang][key];
+            }
+        });
+        // 动态局部更新（表格内的非专有属性重绘）
+        renderRatesTable();
+        calculate();
+    }
+
+    // 6. 渲染费率配置表
+    function renderRatesTable() {
+        // 保存用户已输入的值，防止重绘时丢失
+        const currentVals = {};
+        Object.keys(defaultRates).forEach(key => {
+            const indEl = document.getElementById(`rate_indiv_${key}`);
+            const compEl = document.getElementById(`rate_comp_${key}`);
+            currentVals[key] = {
+                indiv: indEl ? parseFloat(indEl.value) || 0 : defaultRates[key].indiv,
+                comp: compEl ? parseFloat(compEl.value) || 0 : defaultRates[key].comp
+            };
+        });
+
+        ratesTableBody.innerHTML = '';
+        Object.keys(defaultRates).forEach(key => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dictionary[currentLang][key] || key}</td>
+                <td><input type="number" id="rate_indiv_${key}" class="table-input" value="${currentVals[key].indiv}" step="0.1"></td>
+                <td><input type="number" id="rate_comp_${key}" class="table-input" value="${currentVals[key].comp}" step="0.1"></td>
+            `;
+            ratesTableBody.appendChild(tr);
+        });
+
+        // 重新为动态生成的输入框绑定计算监听
+        ratesTableBody.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+    }
+
+    // 7. 核心计算与渲染渲染逻辑
+    function formatCurrency(num) {
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function calculate() {
+        const preTax = parseFloat(preTaxInput.value) || 0;
+        const probRatio = parseFloat(probRatioInput.value) || 0;
+        const workDays = parseFloat(workDaysInput.value) || 0;
+        
+        // 计算实际基数：如果未输入基数，则默认等于税前工资
+        const baseInputVal = parseFloat(baseInput.value);
+        const actualBase = (!isNaN(baseInputVal) && baseInputVal > 0) ? baseInputVal : preTax;
+
+        // 1. 应发工资 = 税前工资 * 试用期比例 * (出勤天数 / 21.75标准计薪天数)
+        const actualGross = preTax * (probRatio / 100) * (workDays / 21.75);
+
+        // 2. 遍历计算五险一金各项金额
+        let indivTotal = 0;
+        let compTotal = 0;
+        breakdownTableBody.innerHTML = '';
+
+        Object.keys(defaultRates).forEach(key => {
+            const indivRate = parseFloat(document.getElementById(`rate_indiv_${key}`)?.value) || 0;
+            const compRate = parseFloat(document.getElementById(`rate_comp_${key}`)?.value) || 0;
+
+            const indivPay = actualBase * (indivRate / 100);
+            const compPay = actualBase * (compRate / 100);
+
+            indivTotal += indivPay;
+            compTotal += compPay;
+
+            // 动态加入明细行
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dictionary[currentLang][key] || key}</td>
+                <td style="text-align: right; font-weight: 500;">¥ ${formatCurrency(indivPay)}</td>
+                <td style="text-align: right; font-weight: 500;">¥ ${formatCurrency(compPay)}</td>
+            `;
+            breakdownTableBody.appendChild(tr);
+        });
+
+        // 3. 计算个人所得税 (根据简易标准月度起征点5000元累计税率计算)
+        const taxableIncome = actualGross - indivTotal - 5000;
+        let tax = 0;
+        if (taxableIncome > 0) {
+            if (taxableIncome <= 3000) tax = taxableIncome * 0.03;
+            else if (taxableIncome <= 12000) tax = taxableIncome * 0.10 - 210;
+            else if (taxableIncome <= 25000) tax = taxableIncome * 0.20 - 1410;
+            else if (taxableIncome <= 35000) tax = taxableIncome * 0.25 - 2660;
+            else if (taxableIncome <= 55000) tax = taxableIncome * 0.30 - 4410;
+            else if (taxableIncome <= 80000) tax = taxableIncome * 0.35 - 7160;
+            else tax = taxableIncome * 0.45 - 15160;
+        }
+
+        // 4. 税后到手工资与总成本
+        const netSalary = actualGross - indivTotal - tax;
+        const totalCompCost = actualGross + compTotal;
+
+        // 5. 渲染输出至右侧卡片
+        document.getElementById('resNetSalary').innerText = formatCurrency(netSalary);
+        document.getElementById('resActualGross').innerText = `¥ ${formatCurrency(actualGross)}`;
+        document.getElementById('resTax').innerText = `¥ ${formatCurrency(tax)}`;
+        document.getElementById('resIndivTotal').innerText = `¥ ${formatCurrency(indivTotal)}`;
+        document.getElementById('resCompTotal').innerText = `¥ ${formatCurrency(compTotal)}`;
+        document.getElementById('resCompCost').innerText = `¥ ${formatCurrency(totalCompCost)}`;
+    }
+
+    // 8. 事件监听设置
+    function bindEvents() {
+        // 输入变化自动计算
+        [preTaxInput, baseInput, probRatioInput, workDaysInput].forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+
+        // 快捷恢复满额按钮
+        restoreProbBtn.addEventListener('click', () => {
+            probRatioInput.value = 100;
+            calculate();
+        });
+        restoreDaysBtn.addEventListener('click', () => {
+            workDaysInput.value = 21.75;
+            calculate();
+        });
+
+        // 切换语言
+        langSelect.addEventListener('change', (e) => {
+            currentLang = e.target.value;
+            updateUIStrings();
+        });
+
+        // 切换主题
+        themeBtn.addEventListener('click', () => {
+            const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(nextTheme);
+        });
+
+        // 监听系统主题变化（仅在无 URL 强指定时响应）
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.get('theme')) {
+                setTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+
+    // 9. 启动初始化
+    initEnvironment();
+    renderRatesTable();
+    updateUIStrings();
+    bindEvents();
+</script>
+</body>
+</html>
