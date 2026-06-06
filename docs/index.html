@@ -1,614 +1,292 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 作品集</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #f4f7fb;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 2rem 1.5rem;
-            color: #1a2e3f;
-            line-height: 1.5;
-        }
-
-        /* 平滑容器 */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* 头部区域 */
-        .header {
-            margin-bottom: 3rem;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 1.5rem;
-        }
-
-        .header-left h1 {
-            font-size: 2.8rem;
-            font-weight: 600;
-            letter-spacing: -0.03em;
-            background: linear-gradient(145deg, #1f3a4b, #2b4d65);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.2;
-        }
-
-        .header-left .sub {
-            font-size: 1.1rem;
-            color: #4e667b;
-            margin-top: 0.5rem;
-            font-weight: 350;
-            border-left: 4px solid #7fa9c7;
-            padding-left: 1.2rem;
-        }
-
-        .header-right {
-            background: #ffffffc7;
-            backdrop-filter: blur(8px);
-            padding: 0.9rem 2rem;
-            border-radius: 60px;
-            box-shadow: 0 10px 22px -18px #1f3a4b;
-            border: 1px solid #ffffff;
-            font-weight: 500;
-            color: #2a5777;
-        }
-
-        .header-right span {
-            font-weight: 650;
-            color: #1c4c6e;
-        }
-
-        /* 分类标签 (可点击的滤镜氛围) */
-        .filter-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.8rem 1.5rem;
-            margin-bottom: 2.8rem;
-            padding: 0.25rem 0;
-            border-bottom: 2px solid #d7e2eb;
-            padding-bottom: 1rem;
-        }
-
-        .filter-item {
-            font-size: 1rem;
-            font-weight: 500;
-            color: #3e6079;
-            background: transparent;
-            padding: 0.5rem 0;
-            cursor: default;
-            border-bottom: 3px solid transparent;
-            transition: 0.15s;
-            letter-spacing: 0.3px;
-        }
-
-        .filter-item.active {
-            color: #1a4e70;
-            border-bottom-color: #397eaa;
-            font-weight: 600;
-        }
-
-        .filter-item:hover:not(.active) {
-            color: #255e83;
-            border-bottom-color: #afc9dd;
-        }
-
-        /* 作品网格 */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem 1.8rem;
-            margin-bottom: 3.5rem;
-        }
-
-        /* 卡片 */
-        .card {
-            background: #ffffff;
-            border-radius: 26px;
-            overflow: hidden;
-            box-shadow: 0 15px 30px -15px rgba(19, 44, 68, 0.2);
-            transition: transform 0.2s ease, box-shadow 0.25s ease;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(2px);
-            height: 100%;
-        }
-
-        .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 30px 40px -18px #1d4057;
-        }
-
-        .card-img {
-            width: 100%;
-            aspect-ratio: 16 / 10;
-            background-color: #c6dae9;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            display: flex;
-            align-items: flex-end;
-            justify-content: flex-start;
-            padding: 0.8rem;
-            color: white;
-            font-weight: 600;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: background 0.25s;
-            border-bottom: 3px solid #ffffffb3;
-        }
-
-        /* 缩略图模拟 —— 实际使用时替换为真实图片 */
-        .card:nth-child(6n+1) .card-img { background-image: linear-gradient(135deg, #3b7990, #6ea9c7), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDNoMTh2MThIM3oiLz48cGF0aCBkPSJNMjEgMjFMMTUgMTUiLz48L3N2Zz4='); background-blend-mode: overlay; background-size: 80px, cover; }
-        .card:nth-child(6n+2) .card-img { background-image: linear-gradient(145deg, #3f6288, #7b9ec7), radial-gradient(circle at 30% 50%, #ffffff50 0%, transparent 40%); }
-        .card:nth-child(6n+3) .card-img { background-image: linear-gradient(112deg, #4f657b, #a2bed9), repeating-linear-gradient(45deg, #fff1 0px, #fff1 8px, transparent 8px, transparent 16px); }
-        .card:nth-child(6n+4) .card-img { background: #2c5777 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZmZmZmZmMjAiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+') center/40px no-repeat, #305e81; }
-        .card:nth-child(6n+5) .card-img { background-image: linear-gradient(145deg, #2d5f6e, #96b9d2), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAyTDggNkg0djEwaDE2VjZoLTQiLz48cGF0aCBkPSJNMTYgMTBIMTJWMTZIMTZWMTBaIi8+PC9zdmc+'); background-blend-mode: soft-light; background-size: 70px, cover; }
-        .card:nth-child(6n) .card-img { background: #446688 radial-gradient(circle at 70% 20%, #f5f9ff80 0%, transparent 60%); }
-
-        .card-content {
-            padding: 1.4rem 1.4rem 1.6rem;
-            background: #ffffff;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .card-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            color: #1f3b4f;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .card-year {
-            font-size: 0.85rem;
-            background: #e2ecf5;
-            padding: 0.2rem 0.9rem;
-            border-radius: 30px;
-            font-weight: 500;
-            color: #31607c;
-        }
-
-        .card-desc {
-            color: #3c5b71;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 1.2rem;
-            flex: 1;
-        }
-
-        .card-meta {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 0.5rem;
-        }
-
-        .tag {
-            background: #eaf1f8;
-            color: #21506b;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.4rem 1rem;
-            border-radius: 40px;
-            letter-spacing: 0.3px;
-            border: 1px solid #bbd3e5;
-            transition: background 0.1s;
-        }
-
-        .tag:hover {
-            background: #d3e3f0;
-        }
-
-        .card-link {
-            margin-left: auto;
-            text-decoration: none;
-            background: #357094;
-            color: white;
-            padding: 0.45rem 1.4rem;
-            border-radius: 36px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            border: 1px solid #1e4d6b;
-            transition: 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-
-        .card-link:hover {
-            background: #1e5577;
-            box-shadow: 0 6px 12px -6px #1d4460;
-            transform: scale(1.02);
-        }
-
-        .card-link:active {
-            background: #12415c;
-        }
-
-        /* 底部装饰 */
-        .footer-note {
-            margin-top: 4rem;
-            text-align: center;
-            color: #54738d;
-            font-size: 0.95rem;
-            border-top: 2px dashed #c4d7e8;
-            padding-top: 2rem;
-            font-style: italic;
-        }
-
-        /* 响应式微调 */
-        @media (max-width: 600px) {
-            body { padding: 1.5rem 1rem; }
-            .header-left h1 { font-size: 2.2rem; }
-            .grid { gap: 1.5rem; }
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 </head>
-<body>
-    <div class="container">
-        <!-- 头部信息 -->
-        <div class="header">
-            <div class="header-left">
-                <h1>作品陈列 · AI</h1>
-                <div class="sub">AI 辅助创作 / 设计 × 开发 × 创意</div>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 backdrop-blur-md bg-white/80">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-indigo-100">
+                    <i class="fa-solid fa-toolbox text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">AI 作品集</h1>
+                    <p class="text-xs text-slate-500">AI 生成的各种单页应用</p>
+                </div>
             </div>
-            <div class="header-right">
-                <span id="item-count"></span> 件作品 · 持续更新
+            
+            <div class="relative w-full sm:w-64">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </span>
+                <input type="text" id="searchInput" oninput="handleSearch()" 
+                       class="w-full pl-9 pr-4 py-2 bg-slate-100 border border-transparent rounded-xl text-sm focus:outline-none focus:bg-white focus:border-indigo-500 transition-all" 
+                       placeholder="搜索...">
             </div>
         </div>
+    </header>
 
-        <!-- 作品网格卡片列表 -->
-        <div id="item-list" class="grid">
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">四则运算·练习 <span class="card-year">2025</span></div>
-                    <div class="card-desc">随机生成若干 100 以内的四则运算练习题，限时完成答题。</div>
-                    <div class="card-meta">
-                        <span class="tag">#启蒙</span>
-                        <span class="tag">#数学</span>
-                        <a href="arithmetic.html" class="card-link">查看<span style="font-size:1.1rem;">→</span></a>
-                    </div>
-                </div>
-            </div>
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-8">
+        <div id="toolsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
 
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">base32/base64 · 编解码 <span class="card-year">2026</span></div>
-                    <div class="card-desc">节流互转，双向实时操作。</div>
-                    <div class="card-meta">
-                        <span class="tag">#base32</span>
-                        <span class="tag">#base64</span>
-                        <a href="base32-64.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">压缩包·伪装 <span class="card-year">2026</span></div>
-                    <div class="card-desc">将压缩包无缝隐藏在图片中。</div>
-                    <div class="card-meta">
-                        <span class="tag">#zip</span>
-                        <span class="tag">#png</span>
-                        <a href="compression-image.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">cURL·命令生成 <span class="card-year">2026</span></div>
-                    <div class="card-desc">将压缩包无缝隐藏在图片中。</div>
-                    <div class="card-meta">
-                        <span class="tag">#curl</span>
-                        <span class="tag">#bash</span>
-                        <a href="curl.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">表情包 · 裁剪分割 <span class="card-year">2025</span></div>
-                    <div class="card-desc">手动调整边缘裁剪值去除空白边距，然后按网格进行拆分。</div>
-                    <div class="card-meta">
-                        <span class="tag">#表情包</span>
-                        <a href="cut-6x4.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">课程表 · 制作/打印 <span class="card-year">2025</span></div>
-                    <div class="card-desc">将课程拖入单元格，也可以点击单元格直接编辑。</div>
-                    <div class="card-meta">
-                        <span class="tag">#课程表</span>
-                        <a href="drag-class.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">画图 <span class="card-year">2025</span></div>
-                    <div class="card-desc">适合从简单涂鸦到复杂几何绘制的各种场景，既可作为教学演示，也可用于日常快速绘图需求。</div>
-                    <div class="card-meta">
-                        <span class="tag">#画图</span>
-                        <span class="tag">#白板</span>
-                        <a href="draw.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">哈希 · 计算器 <span class="card-year">2025</span></div>
-                    <div class="card-desc">计算各种哈希值，支持文本或文件输入。</div>
-                    <div class="card-meta">
-                        <span class="tag">#哈希</span>
-                        <span class="tag">#计算器</span>
-                        <a href="hash.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">五子棋 · AI <span class="card-year">2025</span></div>
-                    <div class="card-desc">博弈树的 AI 五子棋游戏。</div>
-                    <div class="card-meta">
-                        <span class="tag">#五子棋</span>
-                        <span class="tag">#智力</span>
-                        <a href="five-in-a-row.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">Linux 命令 · 速查 <span class="card-year">2026</span></div>
-                    <div class="card-desc">输入 Linux 命令，快速跳转到中文文档。</div>
-                    <div class="card-meta">
-                        <span class="tag">#Linux</span>
-                        <span class="tag">#Bash</span>
-                        <a href="linux-cmd.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">节拍器 <span class="card-year">2026</span></div>
-                    <div class="card-desc">一个简单实用的音乐练习工具，它能够产生稳定的节拍声音，帮助音乐学习者保持准确的节奏感。</div>
-                    <div class="card-meta">
-                        <span class="tag">#音乐</span>
-                        <span class="tag">#Bash</span>
-                        <a href="metronome.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">扫雷 <span class="card-year">2026</span></div>
-                    <div class="card-desc">如果你成功找出了所有地雷，并翻开所有非雷格子，即为胜利。</div>
-                    <div class="card-meta">
-                        <span class="tag">#小游戏</span>
-                        <span class="tag">#数学</span>
-                        <a href="mine-sweeper.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">PDF 拼接 <span class="card-year">2026</span></div>
-                    <div class="card-desc">将多个 PDF 文件合并成一个文档，同时合并书签。</div>
-                    <div class="card-meta">
-                        <span class="tag">#PDF</span>
-                        <a href="pdf-merge.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">PDF 拆分 <span class="card-year">2026</span></div>
-                    <div class="card-desc">将 PDF 文档按指定的页数拆分成多个文档，同时拆分书签。</div>
-                    <div class="card-meta">
-                        <span class="tag">#PDF</span>
-                        <a href="pdf-split.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">PDF 转图片 <span class="card-year">2026</span></div>
-                    <div class="card-desc">将 PDF 文档按页拆分，转换为 PNG 图片。</div>
-                    <div class="card-meta">
-                        <span class="tag">#PDF</span>
-                        <span class="tag">#PNG</span>
-                        <a href="pdf-to-png.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">PDF 浏览 <span class="card-year">2026</span></div>
-                    <div class="card-desc">流式渲染大型 PDF 文件。</div>
-                    <div class="card-meta">
-                        <span class="tag">#PDF</span>
-                        <a href="pdf-view.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">图片·幻影坦克 <span class="card-year">2026</span></div>
-                    <div class="card-desc">利用色阶分割与对角线像素排列，实现不同背景下的隐藏图片效果。</div>
-                    <div class="card-meta">
-                        <span class="tag">#PNG</span>
-                        <span class="tag">#幻影</span>
-                        <a href="mirage-image.html" class="card-link">查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">二维码 · 生成/解析 <span class="card-year">2026</span></div>
-                    <div class="card-desc">二维码实时生成 · 上传识别。</div>
-                    <div class="card-meta">
-                        <span class="tag">#QR Code</span>
-                        <a href="qrcode.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">赛车 · 躲开车流 <span class="card-year">2026</span></div>
-                    <div class="card-desc">操纵汽车躲开车辆，尽可能开得更远。</div>
-                    <div class="card-meta">
-                        <span class="tag">#小游戏</span>
-                        <span class="tag">#动作</span>
-                        <a href="race.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">随机数 · 生成 <span class="card-year">2026</span></div>
-                    <div class="card-desc">操纵汽车躲开车辆，尽可能开得更远。</div>
-                    <div class="card-meta">
-                        <span class="tag">#随机数</span>
-                        <span class="tag">#UUID</span>
-                        <a href="random.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">舒尔特表格 · 测试 <span class="card-year">2026</span></div>
-                    <div class="card-desc">通过快速识别数字来测试注意力和反应速度。</div>
-                    <div class="card-meta">
-                        <span class="tag">#小游戏</span>
-                        <span class="tag">#大脑</span>
-                        <a href="schulte-grid.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">贪吃蛇 <span class="card-year">2025</span></div>
-                    <div class="card-desc">控制蛇吃到食物，每吃到一个食物蛇身就会变长，小心不要撞到墙壁或自己的身体。</div>
-                    <div class="card-meta">
-                        <span class="tag">#小游戏</span>
-                        <span class="tag">#动作</span>
-                        <a href="snake.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">俄罗斯方块 <span class="card-year">2025</span></div>
-                    <div class="card-desc">使用方向键移动和旋转方块，空格键快速下落，看看你能得多少分。</div>
-                    <div class="card-meta">
-                        <span class="tag">#小游戏</span>
-                        <span class="tag">#益智</span>
-                        <a href="tetris.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">艺术字 · 图片生成 <span class="card-year">2026</span></div>
-                    <div class="card-desc">高级多图层艺术字生成器。</div>
-                    <div class="card-meta">
-                        <span class="tag">#字体</span>
-                        <span class="tag">#图片</span>
-                        <a href="text-img.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-img" ></div>
-                <div class="card-content">
-                    <div class="card-title">验证码 · 生成 <span class="card-year">2026</span></div>
-                    <div class="card-desc">生成随机或指定内容的验证码。</div>
-                    <div class="card-meta">
-                        <span class="tag">#验证码</span>
-                        <span class="tag">#图片</span>
-                        <a href="verification-code.html" class="card-link" >查看<span>→</span></a>
-                    </div>
-                </div>
-            </div>
-
+        <div id="noResults" class="hidden text-center py-12 text-slate-400">
+            <i class="fa-regular fa-folder-open text-4xl mb-3 block"></i>
+            <p>没有找到相关的页面</p>
         </div>
+    </main>
 
-        <!-- 脚注 + 占位提示 (链接无跳转) -->
-        <div class="footer-note">
-            ⚡ 点击“查看/预览”按钮为示意链接 · 每张卡片代表一件作品 · 设计随时进化
-        </div>
-    </div>
-    
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400">
+        <p>© 2026 <a href="https://xplanc.org/" target="_blank" class="underline text-sky-500">PlanC</a> 的 AI 玩具箱.</p>
+        <p>Built with Pure Love.</p>
+    </footer>
+
     <script>
-        const itemCount = document.getElementById("item-count");
-        const itemList = document.getElementById("item-list");
-        itemCount.innerText = String(itemList.children.length);
+        const iconColors = ["text-sky-500", "text-violet-500", "text-amber-500", "text-rose-500", "text-emerald-500"]
+        const iconBgColors = ["bg-sky-50", "bg-violet-50", "bg-amber-50", "bg-rose-50", "bg-emerald-50"]
+
+        const toolsData = [
+            {
+                title: "四则运算·练习",
+                desc: "随机生成若干 100 以内的四则运算练习题，限时完成答题。",
+                icon: "fa-calculator",
+                link: "arithmetic.html"
+            },
+
+            {
+                title: "Base32/Base64 · 编解码",
+                desc: "节流互转，双向实时操作。",
+                icon: "fa-b",
+                link: "base32-64.html"
+            },
+
+            {
+                title: "压缩包 · 伪装",
+                desc: "将压缩包无缝隐藏在图片中。",
+                icon: "fa-file-zipper",
+                link: "compression-image.html"
+            },
+
+            {
+                title: "cURL · 命令生成",
+                desc: "可视化配置生成 cURL 命令。",
+                icon: "fa-terminal",
+                link: "curl.html"
+            },
+
+            {
+                title: "表情包 · 裁剪分割",
+                desc: "手动调整边缘裁剪值去除空白边距，然后按网格进行拆分。",
+                icon: "fa-scissors",
+                link: "cut-6x4.html"
+            },
+
+            {
+                title: "课程表 · 制作/打印",
+                desc: "将课程拖入单元格，也可以点击单元格直接编辑。",
+                icon: "fa-table",
+                link: "drag-class.html"
+            },
+
+            {
+                title: "画图",
+                desc: "适合从简单涂鸦到复杂几何绘制的各种场景，既可作为教学演示，也可用于日常快速绘图需求。",
+                icon: "fa-palette",
+                link: "draw.html"
+            },
+
+            {
+                title: "哈希 · 计算器",
+                desc: "计算各种哈希值，支持文本或文件输入。",
+                icon: "fa-key",
+                link: "hash.html"
+            },
+
+            {
+                title: "五子棋 · AI",
+                desc: "博弈树的 AI 五子棋游戏。",
+                icon: "fa-circle-half-stroke",
+                link: "five-in-a-row.html"
+            },
+
+            {
+                title: "Linux 命令 · 速查",
+                desc: "输入 Linux 命令，快速跳转到中文文档。",
+                icon: "fa-terminal",
+                link: "linux-cmd.html"
+            },
+
+            {
+                title: "节拍器",
+                desc: "一个简单实用的音乐练习工具，它能够产生稳定的节拍声音，帮助音乐学习者保持准确的节奏感。",
+                icon: "fa-drum",
+                link: "metronome.html"
+            },
+
+            {
+                title: "扫雷",
+                desc: "如果你成功找出了所有地雷，并翻开所有非雷格子，即为胜利。",
+                icon: "fa-bomb",
+                link: "mine-sweeper.html"
+            },
+
+            {
+                title: "幻影图片",
+                desc: "白色背景下是一副图片，黑色背景下是另一幅图片",
+                icon: "fa-eye",
+                link: "mirage-image.html"
+            },
+
+            {
+                title: "PDF 拼接",
+                desc: "将多个 PDF 文件合并成一个文档，同时合并书签。",
+                icon: "fa-file-pdf",
+                link: "pdf-merge.html"
+            },
+
+            {
+                title: "PDF 拆分",
+                desc: "将 PDF 文档按指定的页数拆分成多个文档，同时拆分书签。",
+                icon: "fa-file-pdf",
+                link: "pdf-split.html"
+            },
+
+            {
+                title: "PDF 转图片",
+                desc: "将 PDF 文档按页拆分，转换为 PNG 图片。",
+                icon: "fa-file-pdf",
+                link: "pdf-to-png.html"
+            },
+
+            {
+                title: "PDF 浏览",
+                desc: "流式渲染大型 PDF 文件。",
+                icon: "fa-file-pdf",
+                link: "pdf-view.html"
+            },
+
+            {
+                title: "二维码 · 生成/解析",
+                desc: "二维码实时生成 · 上传识别。",
+                icon: "fa-qrcode",
+                link: "qrcode.html"
+            },
+
+            {
+                title: "赛车 · 躲开车流",
+                desc: "操纵汽车躲开车辆，尽可能开得更远。",
+                icon: "fa-car-burst",
+                link: "race.html"
+            },
+
+            {
+                title: "随机数 · 生成",
+                desc: "生成随机的数值、字符串或 UUID。",
+                icon: "fa-shuffle",
+                link: "random.html"
+            },
+
+            {
+                title: "工资计算器",
+                desc: "计算税后工资、和各项缴费。",
+                icon: "fa-money-bill-wave",
+                link: "salary.html"
+            },
+
+            {
+                title: "舒尔特表格 · 测试",
+                desc: "通过快速识别数字来测试注意力和反应速度。",
+                icon: "fa-table-cells",
+                link: "schulte-grid.html"
+            },
+
+            {
+                title: "贪吃蛇",
+                desc: "控制蛇吃到食物，每吃到一个食物蛇身就会变长，小心不要撞到墙壁或自己的身体。",
+                icon: "fa-gamepad",
+                link: "snake.html"
+            },
+
+            {
+                title: "俄罗斯方块",
+                desc: "使用方向键移动和旋转方块，空格键快速下落，看看你能得多少分。",
+                icon: "fa-gamepad",
+                link: "tetris.html"
+            },
+
+            {
+                title: "艺术字 · 图片生成",
+                desc: "多图层艺术字生成器。",
+                icon: "fa-xmarks-lines",
+                link: "text-img.html"
+            },
+
+            {
+                title: "验证码 · 生成",
+                desc: "生成随机或指定内容的图形验证码。",
+                icon: "fa-check",
+                link: "verification-code.html"
+            },
+        ];
+
+        // 2. 渲染函数：负责把数组数据变成 HTML 并塞入页面
+        function renderTools(tools) {
+            const grid = document.getElementById('toolsGrid');
+            const noResults = document.getElementById('noResults');
+
+            // 如果没有数据，显示提示，清空列表
+            if (tools.length === 0) {
+                grid.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            // 隐藏无结果提示
+            noResults.classList.add('hidden');
+
+            // 遍历数组生成 HTML 字符串
+            const htmlString = tools.map((tool, i) => `
+                <div class="bg-white p-6 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="${iconColors[i%iconColors.length]} text-2xl mb-4 ${iconBgColors[i%iconBgColors.length]} w-12 h-12 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid ${tool.icon}"></i>
+                        </div>
+                        <h3 class="text-base font-semibold mb-2">${tool.title}</h3>
+                        <p class="text-sm text-slate-500 line-clamp-2">${tool.desc}</p>
+                    </div>
+                    <a href="${tool.link}" class="mt-6 inline-flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-colors">
+                        打开 <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
+            `).join('');
+
+            // 渲染到页面中
+            grid.innerHTML = htmlString;
+        }
+
+        // 3. 搜索处理函数：过滤数据并触发重新渲染
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            // 过滤数组中标题或描述包含关键字的
+            const filteredTools = toolsData.filter(tool => 
+                tool.title.toLowerCase().includes(query) || 
+                tool.desc.toLowerCase().includes(query)
+            );
+
+            // 重新渲染过滤后的结果
+            renderTools(filteredTools);
+        }
+
+        // 4. 页面首次加载时，自动执行一次渲染
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTools(toolsData);
+        });
     </script>
 </body>
 </html>
