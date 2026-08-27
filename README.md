@@ -11,6 +11,7 @@ AI 生成的一些乱七八糟的应用
 * [画图](https://hubenchang0515.github.io/ai-misc/draw)
 * [五子棋](https://hubenchang0515.github.io/ai-misc/five-in-a-row)
 * [哈希计算器](https://hubenchang0515.github.io/ai-misc/hash)
+* [烧纸钱](https://hubenchang0515.github.io/ai-misc/joss_paper)
 * [Linux 命令搜索](https://hubenchang0515.github.io/ai-misc/linux-cmd)
 * [火星文转换器](https://hubenchang0515.github.io/ai-misc/mars-converter)
 * [节拍器](https://hubenchang0515.github.io/ai-misc/metronome)

@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>慎终追远 - 在线烧纸钱</title>
+    <style>
+        :root {
+            --gold: #d4a447;
+            --gold-light: #f0d488;
+            --gold-dark: #8b6914;
+            --red: #8b1a1a;
+            --red-dark: #4a0e0e;
+            --bg-dark: #0d0806;
+            --bg-mid: #1a1008;
+            --text-light: #e8d5b5;
+            --bronze: #8c6b3f;
+            --bronze-light: #b8955c;
+            --bronze-dark: #5a3f1e;
+            --flame-orange: #ff6b00;
+            --flame-red: #cc2200;
+            --flame-yellow: #ffcc33;
+            --smoke-gray: rgba(180, 170, 160, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: radial-gradient(ellipse at center bottom, #2a1a0a 0%, #1a0f06 40%, #0d0806 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'STKaiti', 'KaiTi', '华文楷体', 'SimSun', '宋体', serif;
+            overflow: hidden;
+            position: relative;
+            touch-action: manipulation;
+        }
+
+        /* 背景纹理 - 暗色木纹 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                repeating-linear-gradient(90deg,
+                    transparent 0px,
+                    rgba(60, 35, 15, 0.08) 2px,
+                    transparent 4px,
+                    rgba(40, 25, 10, 0.06) 6px),
+                repeating-linear-gradient(0deg,
+                    transparent 0px,
+                    rgba(50, 30, 12, 0.05) 3px,
+                    transparent 5px,
+                    rgba(35, 20, 8, 0.04) 7px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 烛光背景光晕 */
+        .ambient-glow {
+            position: fixed;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vmin;
+            height: 80vmin;
+            background: radial-gradient(circle, rgba(255, 120, 20, 0.15) 0%, rgba(200, 60, 0, 0.06) 40%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%,
+            100% {
+                opacity: 0.7;
+                transform: translateX(-50%) scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.08);
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 640px;
+            padding: 10px 16px 20px;
+            gap: 8px;
+        }
+
+        /* 顶部标题 */
+        .header {
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .header .title {
+            font-size: clamp(1.6rem, 5vw, 2.6rem);
+            color: var(--gold);
+            letter-spacing: 0.3em;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(212, 164, 71, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 2px;
+        }
+        .header .subtitle {
+            font-size: clamp(0.7rem, 2vw, 0.95rem);
+            color: var(--text-light);
+            letter-spacing: 0.5em;
+            opacity: 0.7;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+        }
+        .header .divider {
+            width: 60%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin: 6px auto 0;
+            opacity: 0.6;
+        }
+
+        /* Canvas容器 */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 520px;
+            margin: 0 auto;
+            border-radius: 50%;
+        }
+        .canvas-wrapper::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border-radius: 50%;
+            border: 2px solid rgba(180, 140, 70, 0.25);
+            box-shadow: 0 0 40px rgba(180, 100, 30, 0.15), inset 0 0 40px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            z-index: 2;
+        }
+        .canvas-wrapper::after {
+            content: '';
+            position: absolute;
+            top: -16px;
+            left: -16px;
+            right: -16px;
+            bottom: -16px;
+            border-radius: 50%;
+            border: 1px solid rgba(150, 110, 50, 0.15);
+            pointer-events: none;
+            z-index: 2;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: block;
+            cursor: pointer;
+            background: radial-gradient(ellipse at center 65%, #1e1208 0%, #0d0704 70%, #080403 100%);
+            box-shadow: 0 0 60px rgba(180, 80, 20, 0.2), 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 80px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 统计信息 */
+        .stats {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(180, 140, 70, 0.3);
+            border-radius: 20px;
+            padding: 6px 14px;
+            backdrop-filter: blur(4px);
+        }
+        .stat-icon {
+            font-size: 1.1rem;
+        }
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.75rem;
+            opacity: 0.8;
+            letter-spacing: 0.1em;
+        }
+        .stat-value {
+            color: var(--gold-light);
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-width: 2.5em;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(240, 212, 136, 0.5);
+        }
+
+        /* 燃料指示器 */
+        .fuel-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+            margin: 2px auto 0;
+        }
+        .fuel-label {
+            color: var(--text-light);
+            font-size: 0.7rem;
+            opacity: 0.6;
+            white-space: nowrap;
+            letter-spacing: 0.15em;
+        }
+        .fuel-bar {
+            flex: 1;
+            height: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid rgba(150, 110, 50, 0.2);
+        }
+        .fuel-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff3300, #ff8800, #ffcc33);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 10px rgba(255, 120, 0, 0.5);
+        }
+
+        /* 按钮区域 */
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: 2px solid rgba(180, 140, 70, 0.5);
+            border-radius: 30px;
+            background: linear-gradient(180deg, rgba(60, 35, 10, 0.8) 0%, rgba(30, 15, 5, 0.9) 100%);
+            color: var(--gold-light);
+            font-family: inherit;
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+            min-width: 100px;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 200, 100, 0.25);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s ease, height 0.5s ease;
+        }
+        .btn:active::after {
+            width: 200%;
+            height: 200%;
+        }
+        .btn:hover {
+            border-color: rgba(220, 180, 100, 0.7);
+            background: linear-gradient(180deg, rgba(80, 45, 15, 0.85) 0%, rgba(45, 22, 8, 0.9) 100%);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6), 0 0 20px rgba(212, 164, 71, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            border-color: rgba(200, 150, 80, 0.6);
+        }
+        .btn-primary {
+            background: linear-gradient(180deg, rgba(120, 60, 15, 0.85) 0%, rgba(60, 25, 8, 0.9) 100%);
+            border-color: rgba(212, 164, 71, 0.6);
+            font-size: 1.05rem;
+            padding: 14px 28px;
+            box-shadow: 0 4px 20px rgba(180, 80, 10, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(180deg, rgba(150, 75, 20, 0.9) 0%, rgba(80, 35, 10, 0.92) 100%);
+            box-shadow: 0 6px 30px rgba(200, 100, 20, 0.45), 0 0 25px rgba(212, 164, 71, 0.3);
+        }
+        .btn-icon {
+            font-size: 1.3rem;
+            margin-right: 4px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        /* 音效按钮 */
+        .sound-btn {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 10;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(180, 140, 70, 0.4);
+            background: rgba(0, 0, 0, 0.6);
+            color: var(--gold);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .sound-btn:hover {
+            border-color: rgba(220, 180, 100, 0.7);
+            background: rgba(30, 15, 5, 0.8);
+        }
+        .sound-btn.off {
+            opacity: 0.5;
+            border-color: rgba(100, 80, 50, 0.3);
+        }
+
+        /* 底部文字 */
+        .footer {
+            text-align: center;
+            margin-top: 10px;
+            color: var(--text-light);
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            opacity: 0.5;
+            line-height: 1.8;
+        }
+        .footer .quote {
+            font-size: 0.8rem;
+            color: var(--gold);
+            opacity: 0.6;
+            letter-spacing: 0.35em;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 6px 10px 12px;
+                gap: 4px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.85rem;
+                min-width: 80px;
+                letter-spacing: 0.12em;
+                border-radius: 24px;
+            }
+            .btn-primary {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+            .canvas-wrapper {
+                max-width: 90vw;
+            }
+            .stats {
+                gap: 8px;
+            }
+            .stat-item {
+                padding: 4px 10px;
+                font-size: 0.75rem;
+            }
+            .sound-btn {
+                top: 8px;
+                right: 8px;
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+            .header .title {
+                letter-spacing: 0.2em;
+            }
+        }
+        @media (max-width: 360px) {
+            .btn {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+                min-width: 65px;
+                letter-spacing: 0.08em;
+            }
+            .btn-primary {
+                padding: 10px 16px;
+                font-size: 0.8rem;
+            }
+            .stat-item {
+                padding: 3px 8px;
+            }
+            .stat-value {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+
+    <!-- 音效开关 -->
+    <button class="sound-btn" id="soundToggle" title="音效开关" aria-label="音效开关">🔊</button>
+
+    <div class="container">
+        <!-- 标题 -->
+        <div class="header">
+            <div class="title">慎终追远</div>
+            <div class="subtitle">— 在线祭祀 · 寄托哀思 —</div>
+            <div class="divider"></div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="ritualCanvas"></canvas>
+        </div>
+
+        <!-- 燃料指示器 -->
+        <div class="fuel-indicator">
+            <span class="fuel-label">🔥 香火</span>
+            <div class="fuel-bar">
+                <div class="fuel-fill" id="fuelFill" style="width: 35%"></div>
+            </div>
+        </div>
+
+        <!-- 统计 -->
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-icon">🪙</span>
+                <span class="stat-label">纸钱</span>
+                <span class="stat-value" id="paperCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🏮</span>
+                <span class="stat-label">元宝</span>
+                <span class="stat-value" id="ingotCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">✨</span>
+                <span class="stat-label">灰烬</span>
+                <span class="stat-value" id="ashCount">0</span>
+            </div>
+        </div>
+
+        <!-- 按钮 -->
+        <div class="buttons">
+            <button class="btn btn-primary" id="btnBurnPaper">
+                <span class="btn-icon">🪙</span>烧纸钱
+            </button>
+            <button class="btn" id="btnBurnIngot">
+                <span class="btn-icon">🏮</span>烧元宝
+            </button>
+            <button class="btn" id="btnBurnMany">
+                <span class="btn-icon">📜</span>烧一叠
+            </button>
+        </div>
+
+        <!-- 底部文字 -->
+        <div class="footer">
+            <div class="quote">「慎终追远，民德归厚矣」</div>
+            <div>— 以此寄托对先人的思念与敬意 —</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== 基础设置 ====================
+            const canvas = document.getElementById('ritualCanvas');
+            const ctx = canvas.getContext('2d');
+            const wrapper = canvas.parentElement;
+
+            // 统计元素
+            const paperCountEl = document.getElementById('paperCount');
+            const ingotCountEl = document.getElementById('ingotCount');
+            const ashCountEl = document.getElementById('ashCount');
+            const fuelFillEl = document.getElementById('fuelFill');
+            const soundToggle = document.getElementById('soundToggle');
+
+            let paperBurned = 0;
+            let ingotsBurned = 0;
+            let ashParticlesEmitted = 0;
+
+            // 燃料系统
+            let fuel = 35; // 0-100
+            const FUEL_MAX = 100;
+            const FUEL_MIN = 5;
+            const FUEL_CONSUME_RATE = 0.025; // 每帧消耗
+            const FUEL_PAPER_ADD = 7;
+            const FUEL_INGOT_ADD = 10;
+            const FUEL_MANY_ADD = 30;
+
+            // Canvas尺寸
+            let canvasSize = 0;
+            let dpr = 1;
+
+            // 音效相关
+            let soundEnabled = true;
+            let audioCtx = null;
+            let noiseSource = null;
+            let noiseGain = null;
+            let noiseFilter = null;
+            let crackleInterval = null;
+
+            // 粒子数组
+            let flameParticles = [];
+            let smokeParticles = [];
+            let ashParticles = [];
+            let paperItems = [];
+            let ingotItems = [];
+            let sparkParticles = [];
+            let glowParticles = [];
+
+            // 火焰强度（动态）
+            let flameIntensity = 1.0;
+
+            // ==================== 音效系统 ====================
+            function initAudio() {
+                if (!audioCtx) {
+                    try {
+                        audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                    } catch (e) {
+                        console.log('Web Audio API not supported');
+                        soundEnabled = false;
+                        updateSoundButton();
+                        return;
+                    }
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                // 创建火焰噪声
+                if (!noiseSource) {
+                    const bufferSize = audioCtx.sampleRate * 2;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    noiseSource = audioCtx.createBufferSource();
+                    noiseSource.buffer = buffer;
+                    noiseSource.loop = true;
+
+                    noiseFilter = audioCtx.createBiquadFilter();
+                    noiseFilter.type = 'lowpass';
+                    noiseFilter.frequency.value = 800;
+                    noiseFilter.Q.value = 0.5;
+
+                    noiseGain = audioCtx.createGain();
+                    noiseGain.gain.value = 0;
+
+                    noiseSource.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    noiseSource.start();
+                }
+            }
+
+            function updateFireSound() {
+                if (!soundEnabled || !audioCtx || !noiseGain) return;
+                const targetGain = flameIntensity * 0.06;
+                noiseGain.gain.linearRampToValueAtTime(targetGain, audioCtx.currentTime + 0.3);
+                if (noiseFilter) {
+                    noiseFilter.frequency.linearRampToValueAtTime(600 + flameIntensity * 500, audioCtx.currentTime + 0.3);
+                }
+            }
+
+            function playCrackle() {
+                if (!soundEnabled || !audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+                    const nd = noiseBuf.getChannelData(0);
+                    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+                    const ns = audioCtx.createBufferSource();
+                    ns.buffer = noiseBuf;
+                    const nf = audioCtx.createBiquadFilter();
+                    nf.type = 'bandpass';
+                    nf.frequency.value = 2000 + Math.random() * 3000;
+                    nf.Q.value = 8;
+                    const ng = audioCtx.createGain();
+                    ng.gain.setValueAtTime(0.15 + Math.random() * 0.1, audioCtx.currentTime);
+                    ng.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+                    ns.connect(nf);
+                    nf.connect(ng);
+                    ng.connect(audioCtx.destination);
+                    ns.start();
+                    ns.stop(audioCtx.currentTime + 0.08);
+                } catch (e) { /* 忽略 */ }
+            }
+
+            function playBurnSound() {
+                if (!soundEnabled || !audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 600;
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                } catch (e) { /* 忽略 */ }
+            }
+
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                updateSoundButton();
+                if (soundEnabled) {
+                    initAudio();
+                    updateFireSound();
+                } else {
+                    if (noiseGain) noiseGain.gain.linearRampToValueAtTime(0, audioCtx ? audioCtx.currentTime + 0.2 : 0);
+                }
+            }
+
+            function updateSoundButton() {
+                soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+                soundToggle.classList.toggle('off', !soundEnabled);
+            }
+
+            soundToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleSound();
+            });
+            soundToggle.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                toggleSound();
+            });
+
+            // ==================== Canvas尺寸管理 ====================
+            function resizeCanvas() {
+                const rect = wrapper.getBoundingClientRect();
+                dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvasSize = rect.width;
+                canvas.width = canvasSize * dpr;
+                canvas.height = canvasSize * dpr;
+                canvas.style.width = canvasSize + 'px';
+                canvas.style.height = canvasSize + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            // ==================== 坐标工具 ====================
+            function getCenter() {
+                return { x: canvasSize / 2, y: canvasSize * 0.62 };
+            }
+
+            function getFireBase() {
+                return { x: canvasSize / 2, y: canvasSize * 0.65 };
+            }
+
+            function getFireRadius() {
+                return canvasSize * 0.22 * (0.8 + flameIntensity * 0.3);
+            }
+
+            // ==================== 火盆绘制 ====================
+            function drawBrazier() {
+                const cx = canvasSize / 2;
+                const cy = canvasSize * 0.67;
+                const outerR = canvasSize * 0.28;
+                const innerR = canvasSize * 0.22;
+                const depth = canvasSize * 0.13;
+
+                // 火盆主体
+                const brazierGrad = ctx.createLinearGradient(cx - outerR, cy - depth, cx + outerR, cy + depth);
+                brazierGrad.addColorStop(0, '#6b4e2a');
+                brazierGrad.addColorStop(0.3, '#8c6b3f');
+                brazierGrad.addColorStop(0.5, '#a88550');
+                brazierGrad.addColorStop(0.7, '#8c6b3f');
+                brazierGrad.addColorStop(1, '#5a3f1e');
+
+                // 外壁
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, outerR, depth * 0.7, 0, 0, Math.PI * 2);
+                ctx.fillStyle = brazierGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#3d2a12';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 内壁
+                const innerGrad = ctx.createRadialGradient(cx, cy - depth * 0.35, innerR * 0.2, cx, cy - depth * 0.3,
+                    innerR);
+                innerGrad.addColorStop(0, '#1a0a04');
+                innerGrad.addColorStop(0.5, '#2a1408');
+                innerGrad.addColorStop(1, '#3d2010');
+                ctx.beginPath();
+                ctx.ellipse(cx, cy - depth * 0.35, innerR, depth * 0.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = innerGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#4a2e16';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 火盆边缘
+                ctx.beginPath();
+                ctx.ellipse(cx, cy - depth * 0.4, innerR * 1.1, depth * 0.35, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#9a7a4a';
+                ctx.fill();
+                ctx.strokeStyle = '#c4a060';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // 边缘高光
+                ctx.beginPath();
+                ctx.ellipse(cx, cy - depth * 0.45, innerR * 1.05, depth * 0.28, 0, -0.2, Math.PI * 0.8);
+                ctx.strokeStyle = 'rgba(220, 190, 140, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 三足
+                for (let i = -1; i <= 1; i++) {
+                    const fx = cx + i * outerR * 0.7;
+                    const fy = cy + depth * 0.45;
+                    ctx.beginPath();
+                    ctx.moveTo(fx - canvasSize * 0.025, fy);
+                    ctx.quadraticCurveTo(fx, fy + canvasSize * 0.09, fx + canvasSize * 0.02, fy + canvasSize * 0.1);
+                    ctx.lineTo(fx + canvasSize * 0.035, fy + canvasSize * 0.095);
+                    ctx.quadraticCurveTo(fx + canvasSize * 0.04, fy + canvasSize * 0.04, fx + canvasSize * 0.025, fy);
+                    ctx.closePath();
+                    ctx.fillStyle = '#5a3a1a';
+                    ctx.fill();
+                    ctx.strokeStyle = '#3d2a12';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            }
+
+            // ==================== 火焰粒子系统 ====================
+            function createFlameParticle(x, y) {
+                const size = (canvasSize / 520) * (2.5 + Math.random() * 5) * (0.7 + flameIntensity * 0.5);
+                const speed = (canvasSize / 520) * (0.8 + Math.random() * 2.5) * (0.7 + flameIntensity * 0.6);
+                const life = 0.6 + Math.random() * 0.8;
+                const drift = (Math.random() - 0.5) * (canvasSize / 520) * 1.5;
+                return {
+                    x: x + (Math.random() - 0.5) * getFireRadius() * 0.6,
+                    y: y,
+                    vx: drift,
+                    vy: -speed,
+                    size: size,
+                    maxSize: size,
+                    life: life,
+                    maxLife: life,
+                    age: 0,
+                    type: Math.random() < 0.3 ? 'core' : (Math.random() < 0.6 ? 'mid' : 'outer'),
+                };
+            }
+
+            function updateFlameParticles() {
+                const base = getFireBase();
+                const spawnRate = Math.floor(5 + flameIntensity * 12);
+                for (let i = 0; i < spawnRate; i++) {
+                    if (flameParticles.length < 250) {
+                        flameParticles.push(createFlameParticle(base.x, base.y - canvasSize * 0.03));
+                    }
+                }
+
+                for (let i = flameParticles.length - 1; i >= 0; i--) {
+                    const p = flameParticles[i];
+                    p.age += 0.016;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx += (Math.random() - 0.5) * 0.08;
+                    p.vy -= 0.02; // 加速上升
+                    p.size *= 0.995;
+
+                    const lifeRatio = p.age / p.maxLife;
+                    if (lifeRatio >= 1 || p.size < 0.3 || p.y < canvasSize * 0.15) {
+                        flameParticles.splice(i, 1);
+                        continue;
+                    }
+                }
+            }
+
+            function drawFlameParticles() {
+                for (const p of flameParticles) {
+                    const lifeRatio = p.age / p.maxLife;
+                    const alpha = 1 - lifeRatio;
+                    const size = p.size * (0.5 + alpha * 0.6);
+
+                    let r, g, b;
+                    if (p.type === 'core') {
+                        r = 255;
+                        g = 240 - lifeRatio * 100;
+                        b = 200 - lifeRatio * 180;
+                    } else if (p.type === 'mid') {
+                        r = 255;
+                        g = 180 - lifeRatio * 80;
+                        b = 60 - lifeRatio * 50;
+                    } else {
+                        r = 220 - lifeRatio * 80;
+                        g = 80 - lifeRatio * 40;
+                        b = 20 - lifeRatio * 15;
+                    }
+
+                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size);
+                    grad.addColorStop(0, `rgba(255,255,255,${alpha * 0.9})`);
+                    grad.addColorStop(0.2, `rgba(${r},${g},${b},${alpha * 0.85})`);
+                    grad.addColorStop(0.6, `rgba(${Math.floor(r*0.7)},${Math.floor(g*0.4)},${Math.floor(b*0.3)},${alpha * 0.5})`);
+                    grad.addColorStop(1, `rgba(${Math.floor(r*0.4)},${Math.floor(g*0.2)},${Math.floor(b*0.1)},0)`);
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                }
+            }
+
+            // ==================== 烟雾粒子系统 ====================
+            function createSmokeParticle(x, y) {
+                const size = (canvasSize / 520) * (3 + Math.random() * 6);
+                return {
+                    x: x + (Math.random() - 0.5) * canvasSize * 0.06,
+                    y: y + (Math.random() - 0.5) * canvasSize * 0.03,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: -(canvasSize / 520) * (0.4 + Math.random() * 0.8),
+                    size: size,
+                    maxSize: size * 3.5,
+                    life: 1.5 + Math.random() * 2.5,
+                    age: 0,
+                };
+            }
+
+            function updateSmokeParticles() {
+                const base = getFireBase();
+                const spawnRate = Math.floor(2 + flameIntensity * 4);
+                for (let i = 0; i < spawnRate; i++) {
+                    if (smokeParticles.length < 120) {
+                        smokeParticles.push(createSmokeParticle(base.x, base.y - canvasSize * 0.12));
+                    }
+                }
+
+                for (let i = smokeParticles.length - 1; i >= 0; i--) {
+                    const p = smokeParticles[i];
+                    p.age += 0.016;
+                    p.x += p.vx + Math.sin(p.age * 2 + i) * 0.3;
+                    p.y += p.vy;
+                    p.vx *= 0.99;
+                    p.size += (p.maxSize - p.size) * 0.008;
+
+                    const lifeRatio = p.age / p.life;
+                    if (lifeRatio >= 1) {
+                        smokeParticles.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawSmokeParticles() {
+                for (const p of smokeParticles) {
+                    const lifeRatio = p.age / p.life;
+                    const alpha = Math.sin(lifeRatio * Math.PI) * 0.35;
+                    const size = p.size;
+
+                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size);
+                    grad.addColorStop(0, `rgba(160,150,140,${alpha * 0.8})`);
+                    grad.addColorStop(0.5, `rgba(130,120,110,${alpha * 0.4})`);
+                    grad.addColorStop(1, `rgba(100,90,80,0)`);
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                }
+            }
+
+            // ==================== 灰烬/火星粒子 ====================
+            function createAshParticle(x, y) {
+                return {
+                    x: x + (Math.random() - 0.5) * canvasSize * 0.08,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 2.5,
+                    vy: -(canvasSize / 520) * (1 + Math.random() * 3),
+                    size: (canvasSize / 520) * (0.8 + Math.random() * 2.5),
+                    life: 1.5 + Math.random() * 3,
+                    age: 0,
+                    twinkleSpeed: 3 + Math.random() * 5,
+                };
+            }
+
+            function updateAshParticles() {
+                const base = getFireBase();
+                const spawnRate = Math.floor(1 + flameIntensity * 5);
+                for (let i = 0; i < spawnRate; i++) {
+                    if (ashParticles.length < 180) {
+                        ashParticles.push(createAshParticle(base.x, base.y - canvasSize * 0.08));
+                        ashParticlesEmitted++;
+                    }
+                }
+
+                for (let i = ashParticles.length - 1; i >= 0; i--) {
+                    const p = ashParticles[i];
+                    p.age += 0.016;
+                    p.x += p.vx + Math.sin(p.age * p.twinkleSpeed + i) * 0.8;
+                    p.y += p.vy;
+                    p.vx *= 0.99;
+                    p.vy *= 0.995;
+                    // 飘散后缓慢下落
+                    if (p.age > p.life * 0.6) {
+                        p.vy += 0.03;
+                        p.vy = Math.min(p.vy, 1.5);
+                    }
+
+                    if (p.age >= p.life || p.y > canvasSize * 0.9) {
+                        ashParticles.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawAshParticles() {
+                for (const p of ashParticles) {
+                    const lifeRatio = p.age / p.life;
+                    const alpha = Math.sin(lifeRatio * Math.PI) * (0.6 + Math.sin(p.age * p.twinkleSpeed) * 0.4);
+                    const glowSize = p.size * 3;
+
+                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize);
+                    grad.addColorStop(0, `rgba(255,220,150,${alpha * 0.7})`);
+                    grad.addColorStop(0.3, `rgba(255,160,60,${alpha * 0.5})`);
+                    grad.addColorStop(1, `rgba(200,100,20,0)`);
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, glowSize, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+
+                    // 核心亮点
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255,240,200,${alpha * 0.9})`;
+                    ctx.fill();
+                }
+            }
+
+            // ==================== 纸钱（铜钱形状） ====================
+            function createPaperItem() {
+                const center = getCenter();
+                const startX = center.x + (Math.random() - 0.5) * canvasSize * 0.5;
+                const startY = canvasSize * 0.15 + Math.random() * canvasSize * 0.1;
+                const targetX = center.x + (Math.random() - 0.5) * canvasSize * 0.15;
+                const targetY = center.y - canvasSize * 0.05;
+                const size = (canvasSize / 520) * (10 + Math.random() * 6);
+                return {
+                    x: startX,
+                    y: startY,
+                    targetX: targetX,
+                    targetY: targetY,
+                    size: size,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 4,
+                    phase: Math.random() * Math.PI * 2,
+                    swingSpeed: 1.5 + Math.random() * 2,
+                    swingAmp: canvasSize / 520 * (20 + Math.random() * 30),
+                    progress: 0,
+                    speed: 0.012 + Math.random() * 0.015,
+                    burning: false,
+                    burnAge: 0,
+                    burned: false,
+                };
+            }
+
+            function updatePaperItems() {
+                for (let i = paperItems.length - 1; i >= 0; i--) {
+                    const p = paperItems[i];
+                    if (!p.burning) {
+                        p.progress += p.speed * (1 + (flameIntensity - 1) * 0.3);
+                        p.rotation += p.rotSpeed * 0.02;
+                        p.phase += 0.05;
+
+                        const eased = easeInOut(p.progress);
+                        const swing = Math.sin(p.phase * p.swingSpeed) * p.swingAmp * (1 - p.progress);
+                        p.x = lerp(p.x, p.targetX, p.speed * 1.5);
+                        p.y = lerp(p.y, p.targetY, p.speed * 1.5) + swing * 0.3;
+
+                        // 到达火盆后开始燃烧
+                        const distToFire = Math.hypot(p.x - getFireBase().x, p.y - getFireBase().y);
+                        if (distToFire < getFireRadius() * 0.7 || p.progress >= 1) {
+                            p.burning = true;
+                            p.burnAge = 0;
+                            playBurnSound();
+                            // 增加燃料
+                            fuel = Math.min(FUEL_MAX, fuel + FUEL_PAPER_ADD);
+                            paperBurned++;
+                            updateStats();
+                            // 产生火花
+                            for (let j = 0; j < 8; j++) {
+                                sparkParticles.push({
+                                    x: p.x,
+                                    y: p.y,
+                                    vx: (Math.random() - 0.5) * 4,
+                                    vy: -(Math.random() * 3 + 1),
+                                    size: (canvasSize / 520) * (1 + Math.random() * 3),
+                                    life: 0.4 + Math.random() * 0.6,
+                                    age: 0,
+                                    color: Math.random() < 0.5 ? '#ffcc33' : '#ff8833',
+                                });
+                            }
+                        }
+                    } else {
+                        p.burnAge += 0.02;
+                        if (p.burnAge >= 1) {
+                            p.burned = true;
+                        }
+                    }
+
+                    if (p.burned) {
+                        paperItems.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawPaperItems() {
+                for (const p of paperItems) {
+                    const alpha = p.burning ? Math.max(0, 1 - p.burnAge) : 0.95;
+                    const scale = p.burning ? (1 - p.burnAge * 0.5) : 1;
+                    const size = p.size * scale;
+                    const burnOffset = p.burning ? p.burnAge * p.size * 0.5 : 0;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.globalAlpha = alpha;
+
+                    // 铜钱 - 圆形纸钱
+                    const r = size * 0.8;
+                    // 纸钱主体
+                    const paperGrad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+                    paperGrad.addColorStop(0, '#f5e6c8');
+                    paperGrad.addColorStop(0.5, '#e8d4a0');
+                    paperGrad.addColorStop(0.8, '#d4b870');
+                    paperGrad.addColorStop(1, '#c4a458');
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r, 0, Math.PI * 2);
+                    ctx.fillStyle = paperGrad;
+                    ctx.fill();
+                    ctx.strokeStyle = '#8b6914';
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+
+                    // 方孔
+                    const holeSize = r * 0.3;
+                    ctx.beginPath();
+                    ctx.rect(-holeSize / 2, -holeSize / 2, holeSize, holeSize);
+                    ctx.fillStyle = '#3d2a10';
+                    ctx.fill();
+                    ctx.strokeStyle = '#6b4e20';
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+
+                    // 铜钱纹理
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r * 0.65, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(139,105,20,0.3)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+
+                    // 燃烧效果
+                    if (p.burning) {
+                        const burnGrad = ctx.createRadialGradient(0, -r * 0.3, r * 0.2, 0, 0, r * 1.2);
+                        burnGrad.addColorStop(0, `rgba(255,100,20,${p.burnAge * 0.6})`);
+                        burnGrad.addColorStop(0.5, `rgba(200,50,0,${p.burnAge * 0.4})`);
+                        burnGrad.addColorStop(1, 'rgba(50,10,0,0)');
+                        ctx.beginPath();
+                        ctx.arc(0, -r * 0.2, r * 1.5, 0, Math.PI * 2);
+                        ctx.fillStyle = burnGrad;
+                        ctx.fill();
+
+                        // 烧焦边缘
+                        ctx.beginPath();
+                        ctx.arc(0, 0, r * (1 - p.burnAge * 0.3), 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgba(60,20,5,${p.burnAge * 0.7})`;
+                        ctx.lineWidth = 2 + p.burnAge * 3;
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            // ==================== 元宝 ====================
+            function createIngotItem() {
+                const center = getCenter();
+                const startX = center.x + (Math.random() - 0.5) * canvasSize * 0.45;
+                const startY = canvasSize * 0.12 + Math.random() * canvasSize * 0.12;
+                const targetX = center.x + (Math.random() - 0.5) * canvasSize * 0.12;
+                const targetY = center.y - canvasSize * 0.04;
+                const size = (canvasSize / 520) * (12 + Math.random() * 8);
+                return {
+                    x: startX,
+                    y: startY,
+                    targetX: targetX,
+                    targetY: targetY,
+                    size: size,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 3,
+                    phase: Math.random() * Math.PI * 2,
+                    swingSpeed: 1.2 + Math.random() * 1.5,
+                    swingAmp: canvasSize / 520 * (15 + Math.random() * 25),
+                    progress: 0,
+                    speed: 0.01 + Math.random() * 0.012,
+                    burning: false,
+                    burnAge: 0,
+                    burned: false,
+                    golden: Math.random() < 0.7,
+                };
+            }
+
+            function updateIngotItems() {
+                for (let i = ingotItems.length - 1; i >= 0; i--) {
+                    const p = ingotItems[i];
+                    if (!p.burning) {
+                        p.progress += p.speed * (1 + (flameIntensity - 1) * 0.3);
+                        p.rotation += p.rotSpeed * 0.02;
+                        p.phase += 0.05;
+
+                        const swing = Math.sin(p.phase * p.swingSpeed) * p.swingAmp * (1 - p.progress);
+                        p.x = lerp(p.x, p.targetX, p.speed * 1.5);
+                        p.y = lerp(p.y, p.targetY, p.speed * 1.5) + swing * 0.3;
+
+                        const distToFire = Math.hypot(p.x - getFireBase().x, p.y - getFireBase().y);
+                        if (distToFire < getFireRadius() * 0.7 || p.progress >= 1) {
+                            p.burning = true;
+                            p.burnAge = 0;
+                            playBurnSound();
+                            fuel = Math.min(FUEL_MAX, fuel + FUEL_INGOT_ADD);
+                            ingotsBurned++;
+                            updateStats();
+                            for (let j = 0; j < 12; j++) {
+                                sparkParticles.push({
+                                    x: p.x,
+                                    y: p.y,
+                                    vx: (Math.random() - 0.5) * 5,
+                                    vy: -(Math.random() * 3.5 + 1.5),
+                                    size: (canvasSize / 520) * (1.2 + Math.random() * 3.5),
+                                    life: 0.5 + Math.random() * 0.7,
+                                    age: 0,
+                                    color: Math.random() < 0.4 ? '#ffdd55' : '#ff9933',
+                                });
+                            }
+                        }
+                    } else {
+                        p.burnAge += 0.018;
+                        if (p.burnAge >= 1) {
+                            p.burned = true;
+                        }
+                    }
+
+                    if (p.burned) {
+                        ingotItems.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawIngotItems() {
+                for (const p of ingotItems) {
+                    const alpha = p.burning ? Math.max(0, 1 - p.burnAge) : 0.95;
+                    const scale = p.burning ? (1 - p.burnAge * 0.4) : 1;
+                    const size = p.size * scale;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.globalAlpha = alpha;
+
+                    // 元宝形状
+                    const w = size * 1.8;
+                    const h = size * 1.2;
+                    const goldColor = p.golden ? '#ffd700' : '#d4a447';
+                    const goldLight = p.golden ? '#ffe866' : '#f0d488';
+                    const goldDark = p.golden ? '#cc9900' : '#8b6914';
+
+                    const grad = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+                    grad.addColorStop(0, goldLight);
+                    grad.addColorStop(0.4, goldColor);
+                    grad.addColorStop(0.7, goldColor);
+                    grad.addColorStop(1, goldDark);
+
+                    // 元宝主体
+                    ctx.beginPath();
+                    ctx.moveTo(-w / 2, 0);
+                    ctx.quadraticCurveTo(-w / 2, -h * 0.7, -w / 4, -h * 0.8);
+                    ctx.quadraticCurveTo(0, -h, w / 4, -h * 0.8);
+                    ctx.quadraticCurveTo(w / 2, -h * 0.7, w / 2, 0);
+                    ctx.quadraticCurveTo(w / 3, h * 0.3, 0, h * 0.4);
+                    ctx.quadraticCurveTo(-w / 3, h * 0.3, -w / 2, 0);
+                    ctx.closePath();
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                    ctx.strokeStyle = goldDark;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // 元宝顶部鼓起
+                    ctx.beginPath();
+                    ctx.ellipse(0, -h * 0.55, w * 0.35, h * 0.2, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                    ctx.fill();
+
+                    // 高光
+                    ctx.beginPath();
+                    ctx.ellipse(-w * 0.15, -h * 0.45, w * 0.15, h * 0.12, -0.3, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+                    ctx.fill();
+
+                    // 燃烧效果
+                    if (p.burning) {
+                        const burnGrad = ctx.createRadialGradient(0, -h * 0.2, size * 0.2, 0, 0, size * 1.5);
+                        burnGrad.addColorStop(0, `rgba(255,120,30,${p.burnAge * 0.7})`);
+                        burnGrad.addColorStop(0.5, `rgba(220,60,10,${p.burnAge * 0.5})`);
+                        burnGrad.addColorStop(1, 'rgba(60,15,0,0)');
+                        ctx.beginPath();
+                        ctx.arc(0, -h * 0.15, size * 1.8, 0, Math.PI * 2);
+                        ctx.fillStyle = burnGrad;
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(-w / 2 * (1 - p.burnAge * 0.3), 0);
+                        ctx.quadraticCurveTo(-w / 2, -h * 0.7 * (1 - p.burnAge * 0.5), -w / 4, -h * 0.8 * (1 - p
+                        .burnAge * 0.4));
+                        ctx.quadraticCurveTo(0, -h * (1 - p.burnAge * 0.4), w / 4, -h * 0.8 * (1 - p.burnAge * 0.4));
+                        ctx.quadraticCurveTo(w / 2, -h * 0.7 * (1 - p.burnAge * 0.5), w / 2 * (1 - p.burnAge * 0.3), 0);
+                        ctx.strokeStyle = `rgba(60,20,5,${p.burnAge * 0.6})`;
+                        ctx.lineWidth = 1.5 + p.burnAge * 2;
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            // ==================== 火花粒子 ====================
+            function updateSparkParticles() {
+                for (let i = sparkParticles.length - 1; i >= 0; i--) {
+                    const s = sparkParticles[i];
+                    s.age += 0.016;
+                    s.x += s.vx;
+                    s.y += s.vy;
+                    s.vy += 0.15; // 重力
+                    s.vx *= 0.98;
+                    if (s.age >= s.life) {
+                        sparkParticles.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawSparkParticles() {
+                for (const s of sparkParticles) {
+                    const alpha = 1 - s.age / s.life;
+                    const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.size * 2.5);
+                    grad.addColorStop(0, `rgba(255,255,255,${alpha})`);
+                    grad.addColorStop(0.4, `${s.color}${Math.floor(alpha * 180).toString(16).padStart(2,'0')}`);
+                    grad.addColorStop(1, 'rgba(255,100,0,0)');
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.size * 2.5, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                }
+            }
+
+            // ==================== 光晕粒子 ====================
+            function createGlowParticle() {
+                const base = getFireBase();
+                return {
+                    x: base.x + (Math.random() - 0.5) * canvasSize * 0.2,
+                    y: base.y - (Math.random() * canvasSize * 0.25),
+                    size: canvasSize * (0.1 + Math.random() * 0.15),
+                    alpha: 0.08 + Math.random() * 0.12,
+                    pulse: 1 + Math.random() * 2,
+                    phase: Math.random() * Math.PI * 2,
+                };
+            }
+
+            function updateGlowParticles() {
+                if (glowParticles.length < 3) {
+                    glowParticles.push(createGlowParticle());
+                }
+                for (let i = glowParticles.length - 1; i >= 0; i--) {
+                    const g = glowParticles[i];
+                    g.phase += 0.03;
+                }
+            }
+
+            function drawGlowParticles() {
+                for (const g of glowParticles) {
+                    const alpha = g.alpha * (0.6 + Math.sin(g.phase * g.pulse) * 0.4) * flameIntensity;
+                    const grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.size);
+                    grad.addColorStop(0, `rgba(255,140,40,${alpha})`);
+                    grad.addColorStop(0.5, `rgba(255,80,20,${alpha * 0.5})`);
+                    grad.addColorStop(1, 'rgba(255,50,0,0)');
+                    ctx.beginPath();
+                    ctx.arc(g.x, g.y, g.size, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                }
+            }
+
+            // ==================== 工具函数 ====================
+            function lerp(a, b, t) {
+                return a + (b - a) * Math.min(Math.max(t, 0), 1);
+            }
+
+            function easeInOut(t) {
+                return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            }
+
+            function updateStats() {
+                paperCountEl.textContent = paperBurned;
+                ingotCountEl.textContent = ingotsBurned;
+                ashCountEl.textContent = ashParticlesEmitted;
+                const fuelPercent = Math.round((fuel / FUEL_MAX) * 100);
+                fuelFillEl.style.width = fuelPercent + '%';
+                // 燃料条颜色随强度变化
+                const hue = Math.round(30 + (1 - fuelPercent / 100) * 20);
+                fuelFillEl.style.background =
+                    `linear-gradient(90deg, #ff2200, #ff${Math.round(80 + fuelPercent / 2).toString(16).padStart(2,'0')}00, #ffcc33)`;
+            }
+
+            // ==================== 烧纸钱操作 ====================
+            function burnPaper() {
+                if (paperItems.length < 20) {
+                    paperItems.push(createPaperItem());
+                }
+                playCrackle();
+                if (soundEnabled) initAudio();
+            }
+
+            function burnIngot() {
+                if (ingotItems.length < 15) {
+                    ingotItems.push(createIngotItem());
+                }
+                playCrackle();
+                if (soundEnabled) initAudio();
+            }
+
+            function burnMany() {
+                const count = 5 + Math.floor(Math.random() * 4);
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        if (paperItems.length < 30) {
+                            paperItems.push(createPaperItem());
+                        }
+                        if (i % 2 === 0 && ingotItems.length < 20) {
+                            ingotItems.push(createIngotItem());
+                        }
+                        playCrackle();
+                    }, i * 120);
+                }
+                playBurnSound();
+                if (soundEnabled) initAudio();
+            }
+
+            // ==================== 主循环 ====================
+            function update() {
+                // 燃料消耗
+                fuel = Math.max(FUEL_MIN, fuel - FUEL_CONSUME_RATE * (0.5 + flameIntensity * 0.5));
+
+                // 火焰强度
+                const targetIntensity = 0.4 + (fuel / FUEL_MAX) * 1.2;
+                flameIntensity = lerp(flameIntensity, targetIntensity, 0.03);
+
+                // 更新粒子
+                updateFlameParticles();
+                updateSmokeParticles();
+                updateAshParticles();
+                updatePaperItems();
+                updateIngotItems();
+                updateSparkParticles();
+                updateGlowParticles();
+
+                // 更新音效
+                updateFireSound();
+
+                // 更新统计
+                updateStats();
+
+                // 定期噼啪声
+                if (Math.random() < 0.02 * flameIntensity && soundEnabled) {
+                    playCrackle();
+                }
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+                // 绘制光晕
+                drawGlowParticles();
+
+                // 绘制火盆
+                drawBrazier();
+
+                // 绘制烟雾（在火焰后面）
+                drawSmokeParticles();
+
+                // 绘制火焰
+                drawFlameParticles();
+
+                // 绘制灰烬
+                drawAshParticles();
+
+                // 绘制火花
+                drawSparkParticles();
+
+                // 绘制纸钱
+                drawPaperItems();
+
+                // 绘制元宝
+                drawIngotItems();
+
+                // 底部微光
+                const base = getFireBase();
+                const floorGlow = ctx.createRadialGradient(base.x, base.y + canvasSize * 0.05, 0, base.x, base.y + canvasSize *
+                    0.05, canvasSize * 0.35);
+                floorGlow.addColorStop(0, `rgba(255,120,30,${0.12 * flameIntensity})`);
+                floorGlow.addColorStop(1, 'rgba(255,50,0,0)');
+                ctx.beginPath();
+                ctx.ellipse(base.x, base.y + canvasSize * 0.06, canvasSize * 0.3, canvasSize * 0.08, 0, 0, Math.PI * 2);
+                ctx.fillStyle = floorGlow;
+                ctx.fill();
+            }
+
+            function gameLoop() {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+
+            // ==================== 事件绑定 ====================
+            const btnPaper = document.getElementById('btnBurnPaper');
+            const btnIngot = document.getElementById('btnBurnIngot');
+            const btnMany = document.getElementById('btnBurnMany');
+
+            btnPaper.addEventListener('click', (e) => { e.preventDefault();
+                burnPaper(); });
+            btnPaper.addEventListener('touchend', (e) => { e.preventDefault();
+                burnPaper(); });
+            btnIngot.addEventListener('click', (e) => { e.preventDefault();
+                burnIngot(); });
+            btnIngot.addEventListener('touchend', (e) => { e.preventDefault();
+                burnIngot(); });
+            btnMany.addEventListener('click', (e) => { e.preventDefault();
+                burnMany(); });
+            btnMany.addEventListener('touchend', (e) => { e.preventDefault();
+                burnMany(); });
+
+            // 点击Canvas也可以烧纸
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width * canvasSize;
+                const y = (e.clientY - rect.top) / rect.height * canvasSize;
+                const base = getFireBase();
+                const dist = Math.hypot(x - base.x, y - base.y);
+                if (dist < getFireRadius() * 2.5) {
+                    if (Math.random() < 0.6) burnPaper();
+                    else burnIngot();
+                }
+            });
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                const rect = canvas.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) / rect.width * canvasSize;
+                const y = (touch.clientY - rect.top) / rect.height * canvasSize;
+                const base = getFireBase();
+                const dist = Math.hypot(x - base.x, y - base.y);
+                if (dist < getFireRadius() * 2.5) {
+                    if (Math.random() < 0.6) burnPaper();
+                    else burnIngot();
+                }
+            });
+
+            // ==================== 初始化 ====================
+            function init() {
+                resizeCanvas();
+                updateStats();
+                // 初始火焰
+                for (let i = 0; i < 60; i++) {
+                    flameParticles.push(createFlameParticle(getFireBase().x, getFireBase().y));
+                }
+                for (let i = 0; i < 20; i++) {
+                    smokeParticles.push(createSmokeParticle(getFireBase().x, getFireBase().y - canvasSize * 0.05));
+                }
+                for (let i = 0; i < 30; i++) {
+                    ashParticles.push(createAshParticle(getFireBase().x, getFireBase().y - canvasSize * 0.03));
+                }
+                gameLoop();
+            }
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+            });
+
+            // 防止页面滚动
+            document.addEventListener('touchmove', (e) => {
+                if (e.target.closest('.container')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            init();
+        })();
+    </script>
+</body>
+</html>
