@@ -80,31 +80,27 @@
             margin: 0;
         }
 
-        /* ===== Container ===== */
         .app-container {
             width: 100%;
             max-width: 560px;
             margin: 0 auto;
         }
 
-        /* ===== Card ===== */
         .card {
             background: var(--bg-card);
             border-radius: var(--radius);
             box-shadow: 0 8px 30px var(--shadow-color);
-            /* padding: 28px 28px 24px; */
+            /* padding: 28px 28px 24px;  */
             transition: background var(--transition), box-shadow var(--transition);
             position: relative;
             overflow: hidden;
         }
 
-        /* ===== Display Area (exported) ===== */
-        /* 直接采用宽松样式，无论是否导出 */
+        /* ===== Display Area (always relaxed) ===== */
         .display-area {
             padding: 28px 28px 20px;
             transition: padding 0.2s;
         }
-
         .display-area .balance-big {
             padding: 24px 0 20px;
         }
@@ -127,8 +123,6 @@
             padding-bottom: 20px;
             margin-bottom: 26px;
         }
-
-        /* 列表完全展开，无滚动条 */
         .display-area .expense-list {
             max-height: none !important;
             overflow: visible !important;
@@ -144,12 +138,10 @@
             border-bottom: 1px solid var(--border-color);
             transition: border-color var(--transition);
         }
-
         .header-icon {
             font-size: 26px;
             line-height: 1;
         }
-
         .header-title {
             font-size: 22px;
             font-weight: 700;
@@ -171,7 +163,6 @@
             border-radius: var(--radius-sm);
             transition: background var(--transition);
         }
-
         .budget-label {
             font-size: 15px;
             font-weight: 500;
@@ -179,7 +170,6 @@
             transition: color var(--transition);
             white-space: nowrap;
         }
-
         .budget-input-wrap {
             display: flex;
             align-items: center;
@@ -188,14 +178,12 @@
             min-width: 120px;
             justify-content: flex-end;
         }
-
         .currency-sign {
             font-size: 18px;
             font-weight: 600;
             color: var(--text-secondary);
             transition: color var(--transition);
         }
-
         .budget-input {
             background: transparent;
             border: none;
@@ -210,11 +198,9 @@
             transition: border-color var(--transition), color var(--transition);
             font-family: var(--font);
         }
-
         .budget-input:focus {
             border-bottom-color: var(--bg-button);
         }
-
         .budget-input::placeholder {
             color: var(--text-muted);
             font-weight: 400;
@@ -228,7 +214,6 @@
             gap: 12px;
             margin-bottom: 18px;
         }
-
         .stat-item {
             flex: 1;
             text-align: center;
@@ -237,7 +222,6 @@
             background: var(--bg-input);
             transition: background var(--transition);
         }
-
         .stat-label {
             font-size: 12px;
             font-weight: 500;
@@ -248,14 +232,12 @@
             display: block;
             margin-bottom: 2px;
         }
-
         .stat-value {
             font-size: 18px;
             font-weight: 700;
             color: var(--text-primary);
             transition: color var(--transition);
         }
-
         .stat-value.used {
             color: var(--text-secondary);
         }
@@ -278,7 +260,6 @@
             background: linear-gradient(135deg, rgba(79, 125, 243, 0.08), rgba(79, 125, 243, 0.02));
             transition: background var(--transition);
         }
-
         .balance-big .balance-number {
             font-size: 44px;
             font-weight: 800;
@@ -286,7 +267,6 @@
             line-height: 1.2;
             transition: color var(--transition);
         }
-
         .balance-big .balance-number.positive {
             color: var(--color-positive);
         }
@@ -296,7 +276,6 @@
         .balance-big .balance-number.zero {
             color: var(--text-muted);
         }
-
         .balance-big .balance-hint {
             font-size: 13px;
             color: var(--text-muted);
@@ -312,14 +291,12 @@
             align-items: center;
             margin: 6px 0 10px;
         }
-
         .list-title {
             font-size: 15px;
             font-weight: 600;
             color: var(--text-secondary);
             transition: color var(--transition);
         }
-
         .list-count {
             font-size: 13px;
             color: var(--text-muted);
@@ -333,7 +310,6 @@
             list-style: none;
             margin: 0 0 12px 0;
             padding: 0;
-            /* 无最大高度限制，自然展开 */
         }
 
         .expense-item {
@@ -346,11 +322,9 @@
             transition: background var(--transition), opacity 0.2s;
             animation: slideIn 0.25s ease;
         }
-
         .expense-item:hover {
             background: var(--bg-item-hover);
         }
-
         .expense-item .info {
             display: flex;
             align-items: baseline;
@@ -358,7 +332,6 @@
             flex: 1;
             min-width: 0;
         }
-
         .expense-item .name {
             font-size: 15px;
             font-weight: 500;
@@ -368,7 +341,6 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
         .expense-item .amount {
             font-size: 15px;
             font-weight: 600;
@@ -379,27 +351,104 @@
             padding-left: 12px;
         }
 
-        .expense-item .del-btn {
+        /* 编辑模式样式 */
+        .expense-item.editing {
+            background: var(--bg-input);
+            border: 1px solid var(--bg-button);
+            border-radius: var(--radius-xs);
+        }
+        .expense-item.editing .info {
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .expense-item.editing .edit-name,
+        .expense-item.editing .edit-amount {
+            background: var(--bg-input-focus);
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-xs);
+            padding: 4px 8px;
+            font-size: 14px;
+            font-family: var(--font);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color var(--transition);
+            height: 34px;
+            box-sizing: border-box;
+        }
+        .expense-item.editing .edit-name:focus,
+        .expense-item.editing .edit-amount:focus {
+            border-color: var(--bg-button);
+        }
+        .expense-item.editing .edit-name {
+            flex: 2 1 100px;
+            min-width: 60px;
+        }
+        .expense-item.editing .edit-amount {
+            flex: 0 1 100px;
+            width: 100px;
+            min-width: 60px;
+        }
+        .expense-item.editing .edit-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .expense-item.editing .edit-actions button {
             background: transparent;
             border: none;
-            color: var(--text-muted);
+            font-size: 18px;
             cursor: pointer;
+            padding: 4px 6px;
+            border-radius: var(--radius-xs);
+            transition: background var(--transition), transform 0.15s;
+            line-height: 1;
+        }
+        .expense-item.editing .edit-actions .save-btn {
+            color: var(--color-positive);
+        }
+        .expense-item.editing .edit-actions .save-btn:hover {
+            background: rgba(52, 199, 89, 0.15);
+            transform: scale(1.1);
+        }
+        .expense-item.editing .edit-actions .cancel-btn {
+            color: var(--color-negative);
+        }
+        .expense-item.editing .edit-actions .cancel-btn:hover {
+            background: rgba(245, 108, 108, 0.15);
+            transform: scale(1.1);
+        }
+
+        .expense-item .actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+            margin-left: 6px;
+        }
+        .expense-item .actions button {
+            background: transparent;
+            border: none;
             font-size: 16px;
+            cursor: pointer;
             padding: 4px 6px;
             border-radius: var(--radius-xs);
             transition: background var(--transition), color var(--transition), transform 0.15s;
             line-height: 1;
-            flex-shrink: 0;
-            margin-left: 6px;
+            color: var(--text-muted);
         }
-
-        .expense-item .del-btn:hover {
+        .expense-item .actions .edit-btn:hover {
+            background: rgba(79, 125, 243, 0.12);
+            color: var(--bg-button);
+            transform: scale(1.1);
+        }
+        .expense-item .actions .del-btn:hover {
             background: rgba(245, 108, 108, 0.12);
             color: var(--color-negative);
             transform: scale(1.1);
         }
-
-        .expense-item .del-btn:active {
+        .expense-item .actions .del-btn:active,
+        .expense-item .actions .edit-btn:active {
             transform: scale(0.9);
         }
 
@@ -421,7 +470,6 @@
             font-size: 14px;
             transition: color var(--transition);
         }
-
         .empty-state .empty-icon {
             font-size: 32px;
             display: block;
@@ -439,14 +487,12 @@
             padding-top: 12px;
             transition: border-color var(--transition);
         }
-
         .total-label {
             font-size: 14px;
             font-weight: 600;
             color: var(--text-secondary);
             transition: color var(--transition);
         }
-
         .total-value {
             font-size: 16px;
             font-weight: 700;
@@ -461,7 +507,6 @@
             border-top: 1px solid var(--border-color);
             transition: border-color var(--transition);
         }
-
         .add-form {
             display: flex;
             flex-wrap: wrap;
@@ -469,7 +514,6 @@
             align-items: flex-end;
             margin-bottom: 16px;
         }
-
         .add-form .field {
             flex: 1 1 120px;
             min-width: 80px;
@@ -477,11 +521,9 @@
             flex-direction: column;
             gap: 3px;
         }
-
         .add-form .field.name-field {
             flex: 2 1 140px;
         }
-
         .add-form label {
             display: block;
             font-size: 12px;
@@ -492,7 +534,6 @@
             line-height: 1.4;
             height: 1.4em;
         }
-
         .add-form input {
             width: 100%;
             padding: 8px 12px;
@@ -507,16 +548,13 @@
             height: 40px;
             box-sizing: border-box;
         }
-
         .add-form input:focus {
             border-color: var(--bg-button);
             background: var(--bg-input-focus);
         }
-
         .add-form input::placeholder {
             color: var(--text-muted);
         }
-
         .add-form .field-btn {
             flex: 0 0 auto;
             min-width: auto;
@@ -525,7 +563,6 @@
             gap: 3px;
             justify-content: flex-end;
         }
-
         .add-form .field-btn .label-placeholder {
             display: block;
             height: 1.4em;
@@ -553,7 +590,6 @@
             height: 40px;
             box-sizing: border-box;
         }
-
         .btn:hover {
             background: var(--bg-button-hover);
             transform: translateY(-1px);
@@ -566,25 +602,15 @@
             cursor: not-allowed;
             transform: none;
         }
-
         .btn-add {
             background: var(--bg-button);
             padding: 0 24px;
             height: 40px;
             width: 100%;
         }
-
         .btn-add:hover {
             background: var(--bg-button-hover);
         }
-
-        .btn-danger {
-            background: var(--bg-button-danger);
-        }
-        .btn-danger:hover {
-            background: var(--bg-button-danger-hover);
-        }
-
         .btn-export {
             background: var(--bg-button-export);
             width: 100%;
@@ -592,38 +618,25 @@
             font-size: 15px;
             border-radius: var(--radius-sm);
         }
-
         .btn-export:hover {
             background: var(--bg-button-export-hover);
         }
-
         .btn-export:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
-
         .btn-export .icon {
             font-size: 18px;
-        }
-
-        /* ===== Utility ===== */
-        .mt-8 {
-            margin-top: 8px;
-        }
-        .flex-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .gap-6 {
-            gap: 6px;
         }
 
         /* ===== Responsive ===== */
         @media (max-width: 480px) {
             .card {
-                padding: 20px 16px 18px;
+                /* padding: 20px 16px 18px; */
+            }
+            .display-area {
+                padding: 20px 16px 16px !important;
             }
             .header-title {
                 font-size: 19px;
@@ -662,12 +675,25 @@
             }
             .expense-item {
                 padding: 8px 8px;
+                flex-wrap: wrap;
             }
-            .expense-item .name {
-                font-size: 14px;
+            .expense-item .info {
+                flex: 1 1 100%;
+                margin-bottom: 4px;
             }
-            .expense-item .amount {
-                font-size: 14px;
+            .expense-item .actions {
+                margin-left: auto;
+            }
+            .expense-item.editing .info {
+                flex-wrap: wrap;
+            }
+            .expense-item.editing .edit-name,
+            .expense-item.editing .edit-amount {
+                flex: 1 1 100%;
+            }
+            .expense-item.editing .edit-actions {
+                width: 100%;
+                justify-content: flex-end;
             }
             .budget-row {
                 padding: 10px 12px;
@@ -679,15 +705,14 @@
                 height: 40px;
                 font-size: 14px;
             }
-            /* 小屏调整内边距 */
-            .display-area {
-                padding: 20px 16px 16px !important;
-            }
         }
 
         @media (max-width: 360px) {
             .card {
-                padding: 16px 12px 14px;
+                /* padding: 16px 12px 14px;  */
+            }
+            .display-area {
+                padding: 16px 12px 12px !important;
             }
             .balance-big .balance-number {
                 font-size: 28px;
@@ -702,18 +727,20 @@
             .stat-value {
                 font-size: 14px;
             }
-            .display-area {
-                padding: 16px 12px 12px !important;
-            }
         }
 
-        /* ===== Print / Export ===== */
+        /* ===== Export ===== */
         .exporting .display-area {
             opacity: 1 !important;
         }
 
-        /* ===== Scrollbar for Firefox (not needed now) ===== */
-        /* ===== Smooth theme transition ===== */
+        /* ===== Scrollbar ===== */
+        .expense-list {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        /* ===== Transitions ===== */
         .card,
         .budget-row,
         .stat-item,
@@ -726,7 +753,6 @@
             transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
         }
 
-        /* ===== Data uri fallback ===== */
         .no-html2canvas .btn-export {
             opacity: 0.6;
             cursor: not-allowed;
@@ -877,6 +903,9 @@
                     overspent: '超支',
                     balanced: '收支平衡',
                     delete: '删除',
+                    edit: '编辑',
+                    save: '保存',
+                    cancel: '取消',
                 },
                 en: {
                     title: 'Budget Tracker',
@@ -895,6 +924,9 @@
                     overspent: 'Overspent',
                     balanced: 'Balanced',
                     delete: 'Delete',
+                    edit: 'Edit',
+                    save: 'Save',
+                    cancel: 'Cancel',
                 }
             };
 
@@ -934,7 +966,6 @@
             }
 
             applyTheme(theme);
-
             if (theme === 'system') {
                 const media = window.matchMedia('(prefers-color-scheme: dark)');
                 const handler = () => applyTheme('system');
@@ -1005,7 +1036,13 @@
             const state = loadData();
 
             // ================================================================
-            // 7. DOM refs
+            // 7. EDIT STATE
+            // ================================================================
+            let editingIndex = -1;
+            let editData = { name: '', amount: '' };
+
+            // ================================================================
+            // 8. DOM refs
             // ================================================================
             const budgetInput = document.getElementById('budgetInput');
             const usedDisplay = document.getElementById('usedDisplay');
@@ -1023,7 +1060,7 @@
             const displayArea = document.getElementById('displayArea');
 
             // ================================================================
-            // 8. HELPERS
+            // 9. HELPERS
             // ================================================================
             function currencySymbol() {
                 return lang === 'zh' ? '¥' : '$';
@@ -1045,12 +1082,11 @@
             }
 
             // ================================================================
-            // 9. RENDER
+            // 10. RENDER
             // ================================================================
             function updateAll() {
                 const total = getTotal();
                 const balance = getBalance();
-                const sign = currencySymbol();
 
                 usedDisplay.textContent = formatMoney(total);
                 const balanceText = formatMoney(balance);
@@ -1068,6 +1104,7 @@
 
                 updateBalanceHint();
 
+                // Render list
                 if (state.expenses.length === 0) {
                     expenseList.innerHTML =
                         `<li class="empty-state"><span class="empty-icon">📋</span><span data-i18n="noExpenses">${i18n.noExpenses}</span></li>`;
@@ -1077,27 +1114,37 @@
                     let html = '';
                     state.expenses.forEach((exp, index) => {
                         const amt = formatMoney(exp.amount);
-                        html += `
-                            <li class="expense-item" data-index="${index}">
-                                <div class="info">
-                                    <span class="name">${escapeHtml(exp.name)}</span>
-                                    <span class="amount">${amt}</span>
-                                </div>
-                                <button class="del-btn" data-index="${index}" aria-label="${i18n.delete}" title="${i18n.delete}">✕</button>
-                            </li>
-                        `;
+                        if (index === editingIndex) {
+                            // 编辑模式
+                            html += `
+                                <li class="expense-item editing" data-index="${index}">
+                                    <div class="info">
+                                        <input type="text" class="edit-name" value="${escapeHtml(editData.name)}" data-field="name" placeholder="${i18n.nameLabel}" />
+                                        <input type="number" step="0.01" class="edit-amount" value="${editData.amount}" data-field="amount" placeholder="0.00" />
+                                    </div>
+                                    <div class="edit-actions">
+                                        <button class="save-btn" data-index="${index}" title="${i18n.save}">💾</button>
+                                        <button class="cancel-btn" data-index="${index}" title="${i18n.cancel}">✖️</button>
+                                    </div>
+                                </li>
+                            `;
+                        } else {
+                            // 普通模式
+                            html += `
+                                <li class="expense-item" data-index="${index}">
+                                    <div class="info">
+                                        <span class="name">${escapeHtml(exp.name)}</span>
+                                        <span class="amount">${amt}</span>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="edit-btn" data-index="${index}" title="${i18n.edit}">✏️</button>
+                                        <button class="del-btn" data-index="${index}" title="${i18n.delete}">✕</button>
+                                    </div>
+                                </li>
+                            `;
+                        }
                     });
                     expenseList.innerHTML = html;
-
-                    expenseList.querySelectorAll('.del-btn').forEach(btn => {
-                        btn.addEventListener('click', function(e) {
-                            const idx = parseInt(this.getAttribute('data-index'), 10);
-                            if (!isNaN(idx)) {
-                                deleteExpense(idx);
-                            }
-                            e.stopPropagation();
-                        });
-                    });
                 }
 
                 listCount.textContent = state.expenses.length;
@@ -1137,18 +1184,44 @@
             }
 
             // ================================================================
-            // 10. ACTIONS
+            // 11. EDIT FUNCTIONS
             // ================================================================
-            function setBudget(val) {
-                const num = parseFloat(val);
-                if (!isNaN(num) && num >= 0) {
-                    state.budget = num;
-                } else {
-                    state.budget = 0;
-                }
+            function startEdit(index) {
+                if (index < 0 || index >= state.expenses.length) return;
+                const exp = state.expenses[index];
+                editingIndex = index;
+                editData.name = exp.name;
+                editData.amount = exp.amount.toString();
                 render();
             }
 
+            function saveEdit(index) {
+                if (index !== editingIndex) return;
+                const name = editData.name.trim();
+                const amount = parseFloat(editData.amount);
+                if (!name) {
+                    alert('名称不能为空');
+                    return;
+                }
+                if (isNaN(amount) || amount <= 0) {
+                    alert('金额必须大于0');
+                    return;
+                }
+                state.expenses[index] = { name, amount };
+                editingIndex = -1;
+                editData = { name: '', amount: '' };
+                render();
+            }
+
+            function cancelEdit() {
+                editingIndex = -1;
+                editData = { name: '', amount: '' };
+                render();
+            }
+
+            // ================================================================
+            // 12. ACTIONS (add, delete)
+            // ================================================================
             function addExpense(name, amount) {
                 const n = name.trim();
                 const a = parseFloat(amount);
@@ -1161,14 +1234,22 @@
             function deleteExpense(index) {
                 if (index >= 0 && index < state.expenses.length) {
                     state.expenses.splice(index, 1);
+                    // 如果正在编辑该项，取消编辑
+                    if (editingIndex === index) {
+                        editingIndex = -1;
+                        editData = { name: '', amount: '' };
+                    } else if (editingIndex > index) {
+                        editingIndex--;
+                    }
                     render();
                 }
             }
 
             // ================================================================
-            // 11. EVENT BINDINGS
+            // 13. EVENT BINDINGS
             // ================================================================
 
+            // Budget input
             budgetInput.addEventListener('input', function() {
                 const val = this.value;
                 const num = parseFloat(val);
@@ -1196,6 +1277,7 @@
                 }
             });
 
+            // Add form
             addForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 const name = expenseName.value.trim();
@@ -1224,8 +1306,55 @@
                 }
             });
 
+            // Expense list events (delegation)
+            expenseList.addEventListener('click', function(e) {
+                const target = e.target;
+                // 编辑按钮
+                if (target.classList.contains('edit-btn')) {
+                    const idx = parseInt(target.dataset.index, 10);
+                    if (!isNaN(idx)) startEdit(idx);
+                    e.preventDefault();
+                }
+                // 删除按钮
+                else if (target.classList.contains('del-btn')) {
+                    const idx = parseInt(target.dataset.index, 10);
+                    if (!isNaN(idx)) deleteExpense(idx);
+                    e.preventDefault();
+                }
+                // 保存按钮
+                else if (target.classList.contains('save-btn')) {
+                    const idx = parseInt(target.dataset.index, 10);
+                    if (!isNaN(idx)) saveEdit(idx);
+                    e.preventDefault();
+                }
+                // 取消按钮
+                else if (target.classList.contains('cancel-btn')) {
+                    cancelEdit();
+                    e.preventDefault();
+                }
+            });
+
+            // 输入框实时更新 editData (使用input事件)
+            expenseList.addEventListener('input', function(e) {
+                const target = e.target;
+                if (target.classList.contains('edit-name') || target.classList.contains('edit-amount')) {
+                    const field = target.dataset.field;
+                    if (field) {
+                        editData[field] = target.value;
+                    }
+                }
+            });
+
+            // 按 ESC 取消编辑
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && editingIndex !== -1) {
+                    cancelEdit();
+                    e.preventDefault();
+                }
+            });
+
             // ================================================================
-            // 12. EXPORT IMAGE (now无需动态改样式)
+            // 14. EXPORT IMAGE
             // ================================================================
             let exporting = false;
 
@@ -1272,7 +1401,7 @@
             });
 
             // ================================================================
-            // 13. INIT
+            // 15. INIT
             // ================================================================
 
             setLanguage(lang);
