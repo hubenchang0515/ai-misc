@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>预算管理工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">
+    </script>
+    <style>
+        /* ===== CSS Variables ===== */
+        :root {
+            --bg-page: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8f9fa;
+            --bg-input: #f5f7fa;
+            --bg-input-focus: #ffffff;
+            --bg-item-hover: #f0f2f5;
+            --bg-button: #4f7df3;
+            --bg-button-hover: #3b6ae0;
+            --bg-button-danger: #f56c6c;
+            --bg-button-danger-hover: #e04a4a;
+            --bg-button-export: #34c759;
+            --bg-button-export-hover: #28a745;
+            --text-primary: #1d2c3c;
+            --text-secondary: #5e6f8d;
+            --text-muted: #8e9db3;
+            --text-inverse: #ffffff;
+            --border-color: #e4e7ed;
+            --shadow-color: rgba(0, 0, 0, 0.08);
+            --shadow-hover: rgba(0, 0, 0, 0.14);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --transition: 0.25s ease;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --color-positive: #34c759;
+            --color-negative: #f56c6c;
+            --color-balance: #4f7df3;
+            --input-border: #d0d5dd;
+        }
+
+        /* ===== Dark Theme ===== */
+        [data-theme="dark"] {
+            --bg-page: #14181c;
+            --bg-card: #1e262e;
+            --bg-card-hover: #28323c;
+            --bg-input: #2a3440;
+            --bg-input-focus: #32404e;
+            --bg-item-hover: #2a3440;
+            --text-primary: #e8edf2;
+            --text-secondary: #a8b8cc;
+            --text-muted: #6a7f96;
+            --border-color: #2f3d4a;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --shadow-hover: rgba(0, 0, 0, 0.5);
+            --input-border: #3d4f5e;
+            --bg-button: #5a7fe6;
+            --bg-button-hover: #4a6fd4;
+        }
+
+        /* ===== Reset & Base ===== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg-page);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: background var(--transition), color var(--transition);
+            margin: 0;
+        }
+
+        /* ===== Container ===== */
+        .app-container {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ===== Card ===== */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: 0 8px 30px var(--shadow-color);
+            /* padding: 28px 28px 24px; */
+            transition: background var(--transition), box-shadow var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ===== Display Area (exported) ===== */
+        /* 直接采用宽松样式，无论是否导出 */
+        .display-area {
+            padding: 28px 28px 20px;
+            transition: padding 0.2s;
+        }
+
+        .display-area .balance-big {
+            padding: 24px 0 20px;
+        }
+        .display-area .stats-row {
+            gap: 18px;
+        }
+        .display-area .expense-item {
+            padding: 12px 16px;
+        }
+        .display-area .budget-row {
+            padding: 16px 20px;
+        }
+        .display-area .list-header {
+            margin: 12px 0 14px;
+        }
+        .display-area .total-row {
+            padding: 14px 16px 0;
+        }
+        .display-area .header {
+            padding-bottom: 20px;
+            margin-bottom: 26px;
+        }
+
+        /* 列表完全展开，无滚动条 */
+        .display-area .expense-list {
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: border-color var(--transition);
+        }
+
+        .header-icon {
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .header-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            transition: color var(--transition);
+        }
+
+        /* ===== Budget Row ===== */
+        .budget-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border-radius: var(--radius-sm);
+            transition: background var(--transition);
+        }
+
+        .budget-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: color var(--transition);
+            white-space: nowrap;
+        }
+
+        .budget-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            min-width: 120px;
+            justify-content: flex-end;
+        }
+
+        .currency-sign {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color var(--transition);
+        }
+
+        .budget-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--input-border);
+            padding: 2px 4px 4px 4px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            width: 120px;
+            text-align: right;
+            outline: none;
+            transition: border-color var(--transition), color var(--transition);
+            font-family: var(--font);
+        }
+
+        .budget-input:focus {
+            border-bottom-color: var(--bg-button);
+        }
+
+        .budget-input::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 16px;
+        }
+
+        /* ===== Stats Row ===== */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px 6px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            transition: background var(--transition);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            transition: color var(--transition);
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            transition: color var(--transition);
+        }
+
+        .stat-value.used {
+            color: var(--text-secondary);
+        }
+        .stat-value.balance {
+            color: var(--color-balance);
+        }
+        .stat-value.balance.positive {
+            color: var(--color-positive);
+        }
+        .stat-value.balance.negative {
+            color: var(--color-negative);
+        }
+
+        /* ===== Balance Big ===== */
+        .balance-big {
+            text-align: center;
+            padding: 18px 0 14px;
+            margin-bottom: 16px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, rgba(79, 125, 243, 0.08), rgba(79, 125, 243, 0.02));
+            transition: background var(--transition);
+        }
+
+        .balance-big .balance-number {
+            font-size: 44px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.2;
+            transition: color var(--transition);
+        }
+
+        .balance-big .balance-number.positive {
+            color: var(--color-positive);
+        }
+        .balance-big .balance-number.negative {
+            color: var(--color-negative);
+        }
+        .balance-big .balance-number.zero {
+            color: var(--text-muted);
+        }
+
+        .balance-big .balance-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-weight: 500;
+            transition: color var(--transition);
+        }
+
+        /* ===== Expense List ===== */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 6px 0 10px;
+        }
+
+        .list-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color var(--transition);
+        }
+
+        .list-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            background: var(--bg-input);
+            padding: 2px 12px;
+            border-radius: 20px;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        .expense-list {
+            list-style: none;
+            margin: 0 0 12px 0;
+            padding: 0;
+            /* 无最大高度限制，自然展开 */
+        }
+
+        .expense-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: var(--radius-xs);
+            margin-bottom: 4px;
+            transition: background var(--transition), opacity 0.2s;
+            animation: slideIn 0.25s ease;
+        }
+
+        .expense-item:hover {
+            background: var(--bg-item-hover);
+        }
+
+        .expense-item .info {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .expense-item .name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: color var(--transition);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .expense-item .amount {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color var(--transition);
+            white-space: nowrap;
+            margin-left: auto;
+            padding-left: 12px;
+        }
+
+        .expense-item .del-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 6px;
+            border-radius: var(--radius-xs);
+            transition: background var(--transition), color var(--transition), transform 0.15s;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-left: 6px;
+        }
+
+        .expense-item .del-btn:hover {
+            background: rgba(245, 108, 108, 0.12);
+            color: var(--color-negative);
+            transform: scale(1.1);
+        }
+
+        .expense-item .del-btn:active {
+            transform: scale(0.9);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 28px 10px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+            transition: color var(--transition);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 32px;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        /* ===== Total ===== */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2px;
+            padding-top: 12px;
+            transition: border-color var(--transition);
+        }
+
+        .total-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color var(--transition);
+        }
+
+        .total-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            transition: color var(--transition);
+        }
+
+        /* ===== Action Area (not exported) ===== */
+        .action-area {
+            margin: 28px 28px 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            transition: border-color var(--transition);
+        }
+
+        .add-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .add-form .field {
+            flex: 1 1 120px;
+            min-width: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .add-form .field.name-field {
+            flex: 2 1 140px;
+        }
+
+        .add-form label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            transition: color var(--transition);
+            line-height: 1.4;
+            height: 1.4em;
+        }
+
+        .add-form input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-xs);
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            transition: border-color var(--transition), background var(--transition), color var(--transition);
+            font-family: var(--font);
+            outline: none;
+            height: 40px;
+            box-sizing: border-box;
+        }
+
+        .add-form input:focus {
+            border-color: var(--bg-button);
+            background: var(--bg-input-focus);
+        }
+
+        .add-form input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .add-form .field-btn {
+            flex: 0 0 auto;
+            min-width: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            justify-content: flex-end;
+        }
+
+        .add-form .field-btn .label-placeholder {
+            display: block;
+            height: 1.4em;
+            visibility: hidden;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: var(--radius-xs);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background var(--transition), transform 0.15s, opacity 0.2s;
+            font-family: var(--font);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+            color: var(--text-inverse);
+            background: var(--bg-button);
+            height: 40px;
+            box-sizing: border-box;
+        }
+
+        .btn:hover {
+            background: var(--bg-button-hover);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-add {
+            background: var(--bg-button);
+            padding: 0 24px;
+            height: 40px;
+            width: 100%;
+        }
+
+        .btn-add:hover {
+            background: var(--bg-button-hover);
+        }
+
+        .btn-danger {
+            background: var(--bg-button-danger);
+        }
+        .btn-danger:hover {
+            background: var(--bg-button-danger-hover);
+        }
+
+        .btn-export {
+            background: var(--bg-button-export);
+            width: 100%;
+            height: 44px;
+            font-size: 15px;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-export:hover {
+            background: var(--bg-button-export-hover);
+        }
+
+        .btn-export:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-export .icon {
+            font-size: 18px;
+        }
+
+        /* ===== Utility ===== */
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gap-6 {
+            gap: 6px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 480px) {
+            .card {
+                padding: 20px 16px 18px;
+            }
+            .header-title {
+                font-size: 19px;
+            }
+            .header-icon {
+                font-size: 22px;
+            }
+            .budget-input {
+                font-size: 18px;
+                width: 100px;
+            }
+            .balance-big .balance-number {
+                font-size: 34px;
+            }
+            .stats-row {
+                gap: 8px;
+            }
+            .stat-item {
+                padding: 8px 4px;
+            }
+            .stat-value {
+                font-size: 16px;
+            }
+            .add-form .field {
+                flex: 1 1 100%;
+                min-width: 0;
+            }
+            .add-form .field.name-field {
+                flex: 1 1 100%;
+            }
+            .add-form .field-btn {
+                flex: 1 1 100%;
+            }
+            .btn-add {
+                width: 100%;
+            }
+            .expense-item {
+                padding: 8px 8px;
+            }
+            .expense-item .name {
+                font-size: 14px;
+            }
+            .expense-item .amount {
+                font-size: 14px;
+            }
+            .budget-row {
+                padding: 10px 12px;
+            }
+            .budget-label {
+                font-size: 14px;
+            }
+            .btn-export {
+                height: 40px;
+                font-size: 14px;
+            }
+            /* 小屏调整内边距 */
+            .display-area {
+                padding: 20px 16px 16px !important;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .card {
+                padding: 16px 12px 14px;
+            }
+            .balance-big .balance-number {
+                font-size: 28px;
+            }
+            .header-title {
+                font-size: 17px;
+            }
+            .budget-input {
+                font-size: 16px;
+                width: 80px;
+            }
+            .stat-value {
+                font-size: 14px;
+            }
+            .display-area {
+                padding: 16px 12px 12px !important;
+            }
+        }
+
+        /* ===== Print / Export ===== */
+        .exporting .display-area {
+            opacity: 1 !important;
+        }
+
+        /* ===== Scrollbar for Firefox (not needed now) ===== */
+        /* ===== Smooth theme transition ===== */
+        .card,
+        .budget-row,
+        .stat-item,
+        .balance-big,
+        .add-form input,
+        .expense-item,
+        .total-row,
+        .list-count,
+        .action-area {
+            transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+        }
+
+        /* ===== Data uri fallback ===== */
+        .no-html2canvas .btn-export {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .no-html2canvas .btn-export:hover {
+            transform: none;
+            background: var(--bg-button-export);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="app">
+        <div class="card" id="card">
+
+            <!-- ===== DISPLAY AREA (exported) ===== -->
+            <div class="display-area" id="displayArea">
+
+                <!-- Header -->
+                <div class="header">
+                    <span class="header-icon">💰</span>
+                    <span class="header-title" data-i18n="title">预算管理工具</span>
+                </div>
+
+                <!-- Budget -->
+                <div class="budget-row">
+                    <span class="budget-label" data-i18n="totalBudget">总预算</span>
+                    <div class="budget-input-wrap">
+                        <span class="currency-sign" id="currencySign">¥</span>
+                        <input
+                        type="number"
+                        id="budgetInput"
+                        class="budget-input"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        />
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="used">已用</span>
+                        <span class="stat-value used" id="usedDisplay">¥0.00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="balance">余额</span>
+                        <span class="stat-value balance" id="balanceDisplay">¥0.00</span>
+                    </div>
+                </div>
+
+                <!-- Balance Big -->
+                <div class="balance-big">
+                    <div class="balance-number zero" id="balanceBig">¥0.00</div>
+                    <div class="balance-hint" id="balanceHint" data-i18n="enterBudget">请输入预算</div>
+                </div>
+
+                <!-- Expense List -->
+                <div class="list-header">
+                    <span class="list-title" data-i18n="expenses">开销列表</span>
+                    <span class="list-count" id="listCount">0</span>
+                </div>
+
+                <ul class="expense-list" id="expenseList">
+                    <li class="empty-state">
+                        <span class="empty-icon">📋</span>
+                        <span data-i18n="noExpenses">暂无开销记录</span>
+                    </li>
+                </ul>
+
+                <!-- Total -->
+                <div class="total-row">
+                    <span class="total-label" data-i18n="total">总计</span>
+                    <span class="total-value" id="totalDisplay">¥0.00</span>
+                </div>
+
+            </div>
+            <!-- ===== END DISPLAY AREA ===== -->
+
+            <!-- ===== ACTION AREA (not exported) ===== -->
+            <div class="action-area" id="actionArea">
+
+                <!-- Add Form -->
+                <form class="add-form" id="addForm" autocomplete="off">
+                    <div class="field name-field">
+                        <label data-i18n="nameLabel">名称</label>
+                        <input
+                        type="text"
+                        id="expenseName"
+                        placeholder="e.g. 午餐"
+                        maxlength="30"
+                        />
+                    </div>
+                    <div class="field">
+                        <label data-i18n="amountLabel">金额</label>
+                        <input
+                        type="number"
+                        id="expenseAmount"
+                        placeholder="0.00"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                        />
+                    </div>
+                    <div class="field field-btn">
+                        <span class="label-placeholder">占位</span>
+                        <button type="submit" class="btn btn-add" id="addBtn" data-i18n="add">添加</button>
+                    </div>
+                </form>
+
+                <!-- Export -->
+                <button class="btn btn-export" id="exportBtn">
+                    <span class="icon">📷</span>
+                    <span data-i18n="exportImage">导出图片</span>
+                </button>
+
+            </div>
+            <!-- ===== END ACTION AREA ===== -->
+
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ================================================================
+            // 1. LANGUAGE
+            // ================================================================
+            const LANGUAGES = {
+                zh: {
+                    title: '预算管理工具',
+                    totalBudget: '总预算',
+                    used: '已用',
+                    balance: '余额',
+                    expenses: '开销列表',
+                    noExpenses: '暂无开销记录',
+                    total: '总计',
+                    nameLabel: '名称',
+                    amountLabel: '金额',
+                    add: '添加',
+                    exportImage: '导出图片',
+                    enterBudget: '请输入预算',
+                    remaining: '剩余',
+                    overspent: '超支',
+                    balanced: '收支平衡',
+                    delete: '删除',
+                },
+                en: {
+                    title: 'Budget Tracker',
+                    totalBudget: 'Total Budget',
+                    used: 'Used',
+                    balance: 'Balance',
+                    expenses: 'Expenses',
+                    noExpenses: 'No expenses yet',
+                    total: 'Total',
+                    nameLabel: 'Name',
+                    amountLabel: 'Amount',
+                    add: 'Add',
+                    exportImage: 'Export Image',
+                    enterBudget: 'Enter your budget',
+                    remaining: 'Remaining',
+                    overspent: 'Overspent',
+                    balanced: 'Balanced',
+                    delete: 'Delete',
+                }
+            };
+
+            // ================================================================
+            // 2. URL PARAMS
+            // ================================================================
+            function getUrlParam(param, fallback) {
+                const url = new URL(window.location.href);
+                const val = url.searchParams.get(param);
+                return val !== null ? val : fallback;
+            }
+
+            const langParam = getUrlParam('lang', 'zh');
+            const lang = LANGUAGES[langParam] ? langParam : 'zh';
+            const i18n = LANGUAGES[lang] || LANGUAGES.zh;
+
+            const themeParam = getUrlParam('theme', 'system');
+            let theme = themeParam;
+            if (!['light', 'dark', 'system'].includes(theme)) theme = 'system';
+
+            // ================================================================
+            // 3. THEME
+            // ================================================================
+            function applyTheme(themeMode) {
+                const html = document.documentElement;
+                let effective = themeMode;
+                if (themeMode === 'system') {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    effective = prefersDark ? 'dark' : 'light';
+                }
+                if (effective === 'dark') {
+                    html.setAttribute('data-theme', 'dark');
+                } else {
+                    html.removeAttribute('data-theme');
+                }
+                document.documentElement.dataset.effectiveTheme = effective;
+            }
+
+            applyTheme(theme);
+
+            if (theme === 'system') {
+                const media = window.matchMedia('(prefers-color-scheme: dark)');
+                const handler = () => applyTheme('system');
+                media.addEventListener('change', handler);
+            }
+
+            // ================================================================
+            // 4. I18N
+            // ================================================================
+            function setLanguage(langCode) {
+                const strings = LANGUAGES[langCode] || LANGUAGES.zh;
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (strings[key] !== undefined) {
+                        el.textContent = strings[key];
+                    }
+                });
+                const sign = langCode === 'zh' ? '¥' : '$';
+                document.querySelectorAll('.currency-sign').forEach(el => {
+                    el.textContent = sign;
+                });
+                const nameInput = document.getElementById('expenseName');
+                if (nameInput) {
+                    nameInput.placeholder = langCode === 'zh' ? 'e.g. 午餐' : 'e.g. Lunch';
+                }
+                const amountInput = document.getElementById('expenseAmount');
+                if (amountInput) {
+                    amountInput.placeholder = '0.00';
+                }
+                const budgetInput = document.getElementById('budgetInput');
+                if (budgetInput) {
+                    budgetInput.placeholder = '0.00';
+                }
+                updateBalanceHint();
+            }
+
+            // ================================================================
+            // 5. DATA (localStorage)
+            // ================================================================
+            const STORAGE_KEY = 'budget_tracker_data';
+
+            function loadData() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        return {
+                            budget: typeof data.budget === 'number' ? data.budget : 0,
+                            expenses: Array.isArray(data.expenses) ? data.expenses : [],
+                        };
+                    }
+                } catch (_) { /* ignore */ }
+                return { budget: 0, expenses: [] };
+            }
+
+            function saveData() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        budget: state.budget,
+                        expenses: state.expenses,
+                    }));
+                } catch (_) { /* ignore */ }
+            }
+
+            // ================================================================
+            // 6. STATE
+            // ================================================================
+            const state = loadData();
+
+            // ================================================================
+            // 7. DOM refs
+            // ================================================================
+            const budgetInput = document.getElementById('budgetInput');
+            const usedDisplay = document.getElementById('usedDisplay');
+            const balanceDisplay = document.getElementById('balanceDisplay');
+            const balanceBig = document.getElementById('balanceBig');
+            const balanceHint = document.getElementById('balanceHint');
+            const expenseList = document.getElementById('expenseList');
+            const listCount = document.getElementById('listCount');
+            const totalDisplay = document.getElementById('totalDisplay');
+            const expenseName = document.getElementById('expenseName');
+            const expenseAmount = document.getElementById('expenseAmount');
+            const addForm = document.getElementById('addForm');
+            const addBtn = document.getElementById('addBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const displayArea = document.getElementById('displayArea');
+
+            // ================================================================
+            // 8. HELPERS
+            // ================================================================
+            function currencySymbol() {
+                return lang === 'zh' ? '¥' : '$';
+            }
+
+            function formatMoney(val) {
+                const sign = currencySymbol();
+                const abs = Math.abs(val);
+                const formatted = abs.toFixed(2);
+                return sign + formatted;
+            }
+
+            function getTotal() {
+                return state.expenses.reduce((sum, e) => sum + e.amount, 0);
+            }
+
+            function getBalance() {
+                return state.budget - getTotal();
+            }
+
+            // ================================================================
+            // 9. RENDER
+            // ================================================================
+            function updateAll() {
+                const total = getTotal();
+                const balance = getBalance();
+                const sign = currencySymbol();
+
+                usedDisplay.textContent = formatMoney(total);
+                const balanceText = formatMoney(balance);
+                balanceDisplay.textContent = balanceText;
+
+                balanceBig.textContent = balanceText;
+                balanceBig.className = 'balance-number';
+                if (balance > 0.005) {
+                    balanceBig.classList.add('positive');
+                } else if (balance < -0.005) {
+                    balanceBig.classList.add('negative');
+                } else {
+                    balanceBig.classList.add('zero');
+                }
+
+                updateBalanceHint();
+
+                if (state.expenses.length === 0) {
+                    expenseList.innerHTML =
+                        `<li class="empty-state"><span class="empty-icon">📋</span><span data-i18n="noExpenses">${i18n.noExpenses}</span></li>`;
+                    const span = expenseList.querySelector('[data-i18n]');
+                    if (span) span.textContent = i18n.noExpenses;
+                } else {
+                    let html = '';
+                    state.expenses.forEach((exp, index) => {
+                        const amt = formatMoney(exp.amount);
+                        html += `
+                            <li class="expense-item" data-index="${index}">
+                                <div class="info">
+                                    <span class="name">${escapeHtml(exp.name)}</span>
+                                    <span class="amount">${amt}</span>
+                                </div>
+                                <button class="del-btn" data-index="${index}" aria-label="${i18n.delete}" title="${i18n.delete}">✕</button>
+                            </li>
+                        `;
+                    });
+                    expenseList.innerHTML = html;
+
+                    expenseList.querySelectorAll('.del-btn').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            const idx = parseInt(this.getAttribute('data-index'), 10);
+                            if (!isNaN(idx)) {
+                                deleteExpense(idx);
+                            }
+                            e.stopPropagation();
+                        });
+                    });
+                }
+
+                listCount.textContent = state.expenses.length;
+                totalDisplay.textContent = formatMoney(total);
+                saveData();
+            }
+
+            function render() {
+                updateAll();
+                if (document.activeElement !== budgetInput) {
+                    budgetInput.value = state.budget > 0 ? state.budget.toFixed(2) : '';
+                }
+            }
+
+            function updateBalanceHint() {
+                const balance = getBalance();
+                const hint = balanceHint;
+                if (state.budget === 0 && state.expenses.length === 0) {
+                    hint.textContent = i18n.enterBudget;
+                    hint.style.color = '';
+                } else if (balance > 0.005) {
+                    hint.textContent = i18n.remaining + ' ' + formatMoney(balance);
+                    hint.style.color = 'var(--color-positive)';
+                } else if (balance < -0.005) {
+                    hint.textContent = i18n.overspent + ' ' + formatMoney(Math.abs(balance));
+                    hint.style.color = 'var(--color-negative)';
+                } else {
+                    hint.textContent = i18n.balanced;
+                    hint.style.color = 'var(--text-muted)';
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // ================================================================
+            // 10. ACTIONS
+            // ================================================================
+            function setBudget(val) {
+                const num = parseFloat(val);
+                if (!isNaN(num) && num >= 0) {
+                    state.budget = num;
+                } else {
+                    state.budget = 0;
+                }
+                render();
+            }
+
+            function addExpense(name, amount) {
+                const n = name.trim();
+                const a = parseFloat(amount);
+                if (!n || isNaN(a) || a <= 0) return false;
+                state.expenses.push({ name: n, amount: a });
+                render();
+                return true;
+            }
+
+            function deleteExpense(index) {
+                if (index >= 0 && index < state.expenses.length) {
+                    state.expenses.splice(index, 1);
+                    render();
+                }
+            }
+
+            // ================================================================
+            // 11. EVENT BINDINGS
+            // ================================================================
+
+            budgetInput.addEventListener('input', function() {
+                const val = this.value;
+                const num = parseFloat(val);
+                if (!isNaN(num) && num >= 0) {
+                    state.budget = num;
+                }
+                updateAll();
+            });
+
+            budgetInput.addEventListener('blur', function() {
+                let val = this.value.trim();
+                let num = parseFloat(val);
+                if (isNaN(num) || num < 0) {
+                    num = 0;
+                }
+                state.budget = num;
+                this.value = num > 0 ? num.toFixed(2) : '';
+                render();
+            });
+
+            budgetInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    this.blur();
+                    e.preventDefault();
+                }
+            });
+
+            addForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = expenseName.value.trim();
+                const amount = expenseAmount.value.trim();
+                if (addExpense(name, amount)) {
+                    expenseName.value = '';
+                    expenseAmount.value = '';
+                    expenseName.focus();
+                } else {
+                    if (!name) {
+                        expenseName.focus();
+                        expenseName.style.borderColor = 'var(--color-negative)';
+                        setTimeout(() => { expenseName.style.borderColor = ''; }, 600);
+                    } else if (!amount || parseFloat(amount) <= 0) {
+                        expenseAmount.focus();
+                        expenseAmount.style.borderColor = 'var(--color-negative)';
+                        setTimeout(() => { expenseAmount.style.borderColor = ''; }, 600);
+                    }
+                }
+            });
+
+            expenseAmount.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addForm.dispatchEvent(new Event('submit'));
+                }
+            });
+
+            // ================================================================
+            // 12. EXPORT IMAGE (now无需动态改样式)
+            // ================================================================
+            let exporting = false;
+
+            exportBtn.addEventListener('click', function() {
+                if (exporting) return;
+                if (typeof html2canvas === 'undefined') {
+                    alert('html2canvas library not loaded. Please check your internet connection.');
+                    return;
+                }
+
+                exporting = true;
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '⏳ 导出中...';
+
+                const target = displayArea;
+                const originalOverflow = target.style.overflow;
+                target.style.overflow = 'visible';
+
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const bgColor = isDark ? '#1e262e' : '#ffffff';
+
+                html2canvas(target, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: bgColor,
+                    allowTaint: false,
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `budget_${new Date().toISOString().slice(0,10)}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }).catch(err => {
+                    console.error('Export error:', err);
+                    alert('导出失败，请重试。');
+                }).finally(() => {
+                    target.style.overflow = originalOverflow || '';
+                    exporting = false;
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = `<span class="icon">📷</span> <span data-i18n="exportImage">${i18n.exportImage}</span>`;
+                    const span = exportBtn.querySelector('[data-i18n]');
+                    if (span) span.textContent = i18n.exportImage;
+                });
+            });
+
+            // ================================================================
+            // 13. INIT
+            // ================================================================
+
+            setLanguage(lang);
+            if (state.budget > 0) {
+                budgetInput.value = state.budget.toFixed(2);
+            }
+            render();
+
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    const active = document.activeElement;
+                    if (active && (active.id === 'expenseName' || active.id === 'expenseAmount')) {
+                        e.preventDefault();
+                        addForm.dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+
+            if (typeof html2canvas === 'undefined') {
+                document.body.classList.add('no-html2canvas');
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '📷 导出图片 (需网络)';
+            }
+
+            console.log(`🔧 Budget Tracker initialized | lang=${lang} | theme=${theme} (effective: ${document.documentElement.getAttribute('data-theme') || 'light'})`);
+
+        })();
+    </script>
+
+</body>
+</html>
