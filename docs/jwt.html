@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <link rel="canonical" href="https://misc.xplanc.org/jwt"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="JWT 编解码工具：解析、校验、生成 JSON Web Token（HS256/384/512 签名，RS/ES/PS 验签）。">
@@ -8,10 +9,13 @@
     <script src="vendor/tailwindcss/cdn-3.js"></script>
     <script>
         tailwind.config = { darkMode: 'class' };
-        // 跟随系统主题（不提供手动切换按钮）
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
+        // 主题默认：URL 参数 ?theme= 优先，否则跟随系统（无手动切换按钮）
+        (function () {
+            const p = new URLSearchParams(location.search).get('theme');
+            if (p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
     </script>
     <style>
         body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
@@ -223,7 +227,11 @@
             }
         };
 
-        const lang = 'zh';
+        // 语言默认：URL 参数 ?language= 优先，否则跟随系统语言
+        const _langParam = new URLSearchParams(location.search).get('language');
+        const lang = (_langParam === 'zh' || _langParam === 'en')
+            ? _langParam
+            : ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
         const t = () => i18n[lang];
         const $ = id => document.getElementById(id);
 

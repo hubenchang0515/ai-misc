@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+    <link rel="canonical" href="https://misc.xplanc.org/salary"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>薪资计算器 | Salary Calculator</title>
@@ -317,13 +318,6 @@
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span data-i18n="title">薪资计算器</span>
         </div>
-        <div class="controls" style="visibility: hidden;">
-            <select id="langSelect">
-                <option value="zh">🇨🇳 中文</option>
-                <option value="en">🇺🇸 English</option>
-            </select>
-            <button id="themeBtn" class="btn-toggle">☀️</button>
-        </div>
     </header>
 
     <div class="main-grid">
@@ -514,8 +508,6 @@
     const workDaysInput = document.getElementById('workDays');
     const ratesTableBody = document.getElementById('ratesTableBody');
     const breakdownTableBody = document.getElementById('breakdownTableBody');
-    const langSelect = document.getElementById('langSelect');
-    const themeBtn = document.getElementById('themeBtn');
 
     // 快捷按钮 DOM
     const restoreProbBtn = document.getElementById('restoreProbBtn');
@@ -531,7 +523,6 @@
             lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
         }
         currentLang = lang;
-        langSelect.value = lang;
 
         // 主题解析
         let theme = params.get('theme');
@@ -543,13 +534,7 @@
 
     function setTheme(theme) {
         currentTheme = theme;
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-            themeBtn.innerText = '🌙';
-        } else {
-            document.documentElement.classList.remove('dark');
-            themeBtn.innerText = '☀️';
-        }
+        document.documentElement.classList.toggle('dark', theme === 'dark');
     }
 
     // 5. 国际化翻译更新
@@ -681,17 +666,6 @@
         });
 
         // 切换语言
-        langSelect.addEventListener('change', (e) => {
-            currentLang = e.target.value;
-            updateUIStrings();
-        });
-
-        // 切换主题
-        themeBtn.addEventListener('click', () => {
-            const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-            setTheme(nextTheme);
-        });
-
         // 监听系统主题变化（仅在无 URL 强指定时响应）
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
             const params = new URLSearchParams(window.location.search);

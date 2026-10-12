@@ -33,6 +33,7 @@ ai-misc/
 - 单个文件内包含全部 HTML / CSS / JS，**不引入构建步骤、不使用打包器**；第三方库不使用 CDN，统一放在 `docs/vendor/` 下并以相对路径引用（见第 3 节）。
 - `<html lang="zh-CN">`，界面文案使用中文。
 - 应用标题可中英混排（参考 `docs/random.html` 的 `RANDOM TOOL` 风格）。
+- 每个页面都必须在 `<head>` 内包含 canonical 链接：`<link rel="canonical" href="https://misc.xplanc.org/<tool-name>"/>`（文件名去掉 `.html`；主页 `index.html` 用根路径 `https://misc.xplanc.org/`）。
 
 ### 2. 样式使用 Tailwind CSS（本地文件）
 
@@ -84,10 +85,32 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.js/3.11.174/pdf.worker.min.
 
 ### 4. 深色模式与国际化（新工具建议支持）
 
-部分较新的工具（`qrcode.html`、`pdf-*.html`、`salary.html`、`budget.html`、`mars-converter.html` 等）已支持深色模式与中英切换。实现约定：
+部分较新的工具（`qrcode.html`、`pdf-*.html`、`salary.html`、`budget.html`、`mars-converter.html`、`periodic-table.html`、`jwt.html` 等）已支持深色模式与中英切换。实现约定：
 
 - 深色模式：Tailwind `darkMode: 'class'`，在 `<body>` 及元素上使用 `dark:` 变体。
 - 国际化：定义 `const i18n = { zh: {...}, en: {...} }`，通过 `const t = i18n[lang]` 取文案；需翻译的元素加 `t-` 前缀的 `id`（如 `id="t-subtitle"`）。
+
+**默认值必须跟随系统**（页面参数/URL 仅在显式指定时覆盖）：
+
+```js
+const params = new URLSearchParams(location.search);
+
+// 语言：?language= 优先，否则按系统语言（zh* → zh，其余 → en）
+let lang = params.get('language');
+if (lang !== 'zh' && lang !== 'en') {
+    lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+// 主题：?theme= 优先，否则按系统配色
+let theme = params.get('theme');
+if (theme !== 'light' && theme !== 'dark') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+```
+
+- 主题需在 `<head>` 中提前应用，避免闪烁；且当**没有** `?theme=` 参数时，应监听 `prefers-color-scheme` 的变化实时跟随。
+- 不要用 `localStorage` 保存主题/语言偏好，以免覆盖"跟随系统"的默认行为。
+- **不要添加语言 / 主题切换按钮或控件**：一律按系统默认显示，仅用 `?theme=` / `?language=` 参数覆盖。
 
 新工具可参考这些文件保持一致的交互与视觉风格。
 

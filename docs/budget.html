@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+    <link rel="canonical" href="https://misc.xplanc.org/budget"/>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>预算管理工具</title>
@@ -939,8 +940,10 @@
                 return val !== null ? val : fallback;
             }
 
-            const langParam = getUrlParam('lang', 'zh');
-            const lang = LANGUAGES[langParam] ? langParam : 'zh';
+            // 语言默认：URL 参数 lang / language 优先，否则跟随系统语言
+            const systemLang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+            const langParam = getUrlParam('language', getUrlParam('lang', systemLang));
+            const lang = LANGUAGES[langParam] ? langParam : systemLang;
             const i18n = LANGUAGES[lang] || LANGUAGES.zh;
 
             const themeParam = getUrlParam('theme', 'system');
