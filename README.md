@@ -30,3 +30,5 @@ AI 生成的一些乱七八糟的应用
 * [俄罗斯方块](https://hubenchang0515.github.io/ai-misc/tetris)
 * [艺术字图片生成](https://hubenchang0515.github.io/ai-misc/text-img)
 * [验证码生成](https://hubenchang0515.github.io/ai-misc/verification-code)
+* [元素周期表](https://hubenchang0515.github.io/ai-misc/periodic-table)
+* [JWT 编解码](https://hubenchang0515.github.io/ai-misc/jwt)
