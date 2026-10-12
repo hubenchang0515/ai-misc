@@ -665,12 +665,20 @@
             calculate();
         });
 
-        // 切换语言
         // 监听系统主题变化（仅在无 URL 强指定时响应）
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
             const params = new URLSearchParams(window.location.search);
             if (!params.get('theme')) {
                 setTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+
+        // 监听系统语言变化（仅在无 URL 强指定时响应）
+        window.addEventListener('languagechange', () => {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.get('language')) {
+                currentLang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+                updateUIStrings();
             }
         });
     }

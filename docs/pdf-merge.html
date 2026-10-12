@@ -166,7 +166,7 @@
     if (lang !== 'zh' && lang !== 'en') {
         lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
     }
-    const t = i18n[lang];
+    let t = i18n[lang];
 
     let theme = params.get('theme');
     if (theme !== 'light' && theme !== 'dark') {
@@ -174,14 +174,29 @@
     }
 
     // 应用 UI
-    document.body.className = `theme-${theme}`;
-    document.getElementById('t-title').innerText = t.title;
-    document.getElementById('t-subtitle').innerText = t.subtitle;
-    document.getElementById('t-drop-text').innerHTML = t.drop;
-    document.getElementById('mergeBtn').innerText = t.btnMerge;
+    function applyTheme() {
+        document.body.className = `theme-${theme}`;
+    }
+    function applyLanguage() {
+        t = i18n[lang];
+        document.getElementById('t-title').innerText = t.title;
+        document.getElementById('t-subtitle').innerText = t.subtitle;
+        document.getElementById('t-drop-text').innerHTML = t.drop;
+        document.getElementById('mergeBtn').innerText = t.btnMerge;
+    }
+    applyTheme();
+    applyLanguage();
 
     const logBox = document.getElementById('logBox');
     logBox.innerText = t.ready;
+
+    // 未通过参数指定时，跟随系统变化
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!params.get('theme')) { theme = e.matches ? 'dark' : 'light'; applyTheme(); }
+    });
+    window.addEventListener('languagechange', () => {
+        if (!params.get('language')) { lang = navigator.language.startsWith('zh') ? 'zh' : 'en'; applyLanguage(); }
+    });
 
     // --- 2. 原有逻辑适配 ---
     let selectedFiles = [];

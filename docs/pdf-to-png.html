@@ -173,22 +173,36 @@
         if (langKey !== 'zh' && langKey !== 'en') {
             langKey = navigator.language.startsWith('zh') ? 'zh' : 'en';
         }
-        const t = i18n[langKey];
+        let t = i18n[langKey];
 
         // 主题初始化
         let themeKey = params.get('theme');
         if (themeKey !== 'light' && themeKey !== 'dark') {
             themeKey = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
-        document.body.className = `theme-${themeKey}`;
 
-        // 静态文本填充
-        document.getElementById('t-title').innerText = t.title;
-        document.getElementById('t-subtitle').innerText = t.subtitle;
-        document.getElementById('t-drop-main').innerText = t.dropMain;
-        document.getElementById('t-drop-sub').innerText = t.dropSub;
-        document.getElementById('status-text').innerText = t.statusReady;
-        document.getElementById('download-all-btn').innerText = t.btnDownloadAll;
+        function applyTheme() {
+            document.body.className = `theme-${themeKey}`;
+        }
+        function applyLanguage() {
+            t = i18n[langKey];
+            document.getElementById('t-title').innerText = t.title;
+            document.getElementById('t-subtitle').innerText = t.subtitle;
+            document.getElementById('t-drop-main').innerText = t.dropMain;
+            document.getElementById('t-drop-sub').innerText = t.dropSub;
+            document.getElementById('status-text').innerText = t.statusReady;
+            document.getElementById('download-all-btn').innerText = t.btnDownloadAll;
+        }
+        applyTheme();
+        applyLanguage();
+
+        // 未通过参数指定时，跟随系统变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!params.get('theme')) { themeKey = e.matches ? 'dark' : 'light'; applyTheme(); }
+        });
+        window.addEventListener('languagechange', () => {
+            if (!params.get('language')) { langKey = navigator.language.startsWith('zh') ? 'zh' : 'en'; applyLanguage(); }
+        });
 
         const dropZone = document.getElementById('drop-zone');
         const uploadInput = document.getElementById('pdf-upload');

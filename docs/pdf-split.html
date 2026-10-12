@@ -235,16 +235,30 @@
         theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    document.body.className = `theme-${theme}`;
-    const t = i18n[lang] || i18n.en;
+    let t = i18n[lang] || i18n.en;
 
-    // 填充静态文本
-    document.getElementById('t-title').innerText = t.title;
-    document.getElementById('t-desc').innerText = t.desc;
-    document.getElementById('fileName').innerHTML = t.drop;
-    document.getElementById('t-label-size').innerText = t.labelSize;
-    document.getElementById('t-btn-start').innerText = t.btnStart;
-    document.getElementById('t-label-log').innerText = t.labelLog;
+    function applyTheme() {
+        document.body.className = `theme-${theme}`;
+    }
+    function applyLanguage() {
+        t = i18n[lang] || i18n.en;
+        document.getElementById('t-title').innerText = t.title;
+        document.getElementById('t-desc').innerText = t.desc;
+        document.getElementById('fileName').innerHTML = t.drop;
+        document.getElementById('t-label-size').innerText = t.labelSize;
+        document.getElementById('t-btn-start').innerText = t.btnStart;
+        document.getElementById('t-label-log').innerText = t.labelLog;
+    }
+    applyTheme();
+    applyLanguage();
+
+    // 未通过参数指定时，跟随系统变化
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!params.get('theme')) { theme = e.matches ? 'dark' : 'light'; applyTheme(); }
+    });
+    window.addEventListener('languagechange', () => {
+        if (!params.get('language')) { lang = navigator.language.startsWith('zh') ? 'zh' : 'en'; applyLanguage(); }
+    });
 
     const logBox = document.getElementById('logBox');
     const fileInput = document.getElementById('fileInput');

@@ -942,9 +942,11 @@
 
             // 语言默认：URL 参数 lang / language 优先，否则跟随系统语言
             const systemLang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+            const langFromUrl = new URLSearchParams(window.location.search).has('language')
+                || new URLSearchParams(window.location.search).has('lang');
             const langParam = getUrlParam('language', getUrlParam('lang', systemLang));
-            const lang = LANGUAGES[langParam] ? langParam : systemLang;
-            const i18n = LANGUAGES[lang] || LANGUAGES.zh;
+            let lang = LANGUAGES[langParam] ? langParam : systemLang;
+            let i18n = LANGUAGES[lang] || LANGUAGES.zh;
 
             const themeParam = getUrlParam('theme', 'system');
             let theme = themeParam;
@@ -980,6 +982,8 @@
             // ================================================================
             function setLanguage(langCode) {
                 const strings = LANGUAGES[langCode] || LANGUAGES.zh;
+                lang = langCode;
+                i18n = strings;
                 document.querySelectorAll('[data-i18n]').forEach(el => {
                     const key = el.getAttribute('data-i18n');
                     if (strings[key] !== undefined) {
@@ -1408,6 +1412,13 @@
             // ================================================================
 
             setLanguage(lang);
+
+            // 未通过 URL 指定时，跟随系统语言变化
+            window.addEventListener('languagechange', () => {
+                if (langFromUrl) return;
+                setLanguage((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+            });
+
             if (state.budget > 0) {
                 budgetInput.value = state.budget.toFixed(2);
             }

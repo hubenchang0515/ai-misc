@@ -325,8 +325,22 @@
                 lang = (navigator.language || navigator.userLanguage).startsWith('zh') ? 'zh' : 'en';
             }
             currentLang = lang;
-            
             applyLanguage(lang);
+
+            // 未通过参数指定时，跟随系统变化
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (!params.get('theme')) {
+                    theme = e.matches ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', theme);
+                }
+            });
+            window.addEventListener('languagechange', () => {
+                if (!params.get('language')) {
+                    lang = (navigator.language || navigator.userLanguage).startsWith('zh') ? 'zh' : 'en';
+                    currentLang = lang;
+                    applyLanguage(lang);
+                }
+            });
         }
 
         // --- 界面文本渲染 ---

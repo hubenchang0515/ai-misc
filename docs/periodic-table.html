@@ -480,6 +480,16 @@
             }
         });
 
+        // 无 URL 指定语言时，跟随系统语言变化
+        window.addEventListener('languagechange', () => {
+            if (!urlParams.get('language')) {
+                lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+                applyI18nUI();
+                renderLegend();
+                renderGrid();
+            }
+        });
+
         /* ========== 8. 初始化 ========== */
         applyI18nUI();
         renderLegend();

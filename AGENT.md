@@ -108,7 +108,10 @@ if (theme !== 'light' && theme !== 'dark') {
 }
 ```
 
-- 主题需在 `<head>` 中提前应用，避免闪烁；且当**没有** `?theme=` 参数时，应监听 `prefers-color-scheme` 的变化实时跟随。
+- 主题需在 `<head>` 中提前应用，避免闪烁。
+- **当没有 `?theme=` / `?language=` 参数时，必须监听系统变化并实时跟随**：
+  - 主题：`window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ...)`
+  - 语言：`window.addEventListener('languagechange', ...)`
 - 不要用 `localStorage` 保存主题/语言偏好，以免覆盖"跟随系统"的默认行为。
 - **不要添加语言 / 主题切换按钮或控件**：一律按系统默认显示，仅用 `?theme=` / `?language=` 参数覆盖。
 

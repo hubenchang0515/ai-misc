@@ -229,7 +229,7 @@
 
         // 语言默认：URL 参数 ?language= 优先，否则跟随系统语言
         const _langParam = new URLSearchParams(location.search).get('language');
-        const lang = (_langParam === 'zh' || _langParam === 'en')
+        let lang = (_langParam === 'zh' || _langParam === 'en')
             ? _langParam
             : ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
         const t = () => i18n[lang];
@@ -583,6 +583,19 @@
             navigator.clipboard.writeText(v).then(() => showToast(t().copied)).catch(() => {
                 $('encOutput').select(); document.execCommand('copy'); showToast(t().copied);
             });
+        });
+
+        // 未通过参数指定时，跟随系统主题 / 语言变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!new URLSearchParams(location.search).get('theme')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+        window.addEventListener('languagechange', () => {
+            if (!_langParam) {
+                lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+                applyI18n();
+            }
         });
 
         defaultSample();

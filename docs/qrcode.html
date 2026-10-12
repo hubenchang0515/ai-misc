@@ -140,35 +140,51 @@
 
         const params = new URLSearchParams(window.location.search);
         
-        // 语言设置
+        // 语言设置：?language= 优先，否则跟随系统
         let lang = params.get('language');
         if (lang !== 'zh' && lang !== 'en') {
             lang = navigator.language.startsWith('zh') ? 'zh' : 'en';
         }
-        const t = i18n[lang];
+        let t = i18n[lang];
 
-        // 主题设置
+        // 主题设置：?theme= 优先，否则跟随系统
         let theme = params.get('theme');
         if (theme !== 'light' && theme !== 'dark') {
             theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
 
         // 应用 UI 文本
-        document.getElementById('t-subtitle').innerText = t.subtitle;
-        document.getElementById('t-gen-title').innerText = t.genTitle;
-        document.getElementById('text-input').placeholder = t.genPlaceholder;
-        document.getElementById('t-btn-gen').innerText = t.btnGen;
-        document.getElementById('qr-placeholder').innerText = t.qrWait;
-        document.getElementById('t-dec-title').innerText = t.decTitle;
-        document.getElementById('t-drop-text').innerText = t.dropText;
-        document.getElementById('t-drop-sub').innerText = t.dropSub;
-        document.getElementById('url-input').placeholder = t.urlPlaceholder;
-        document.getElementById('t-btn-dec').innerText = t.btnDec;
-        document.getElementById('t-label-res').innerText = t.labelRes;
-        document.getElementById('result').innerText = t.resWait;
+        function applyLanguage() {
+            t = i18n[lang];
+            document.getElementById('t-subtitle').innerText = t.subtitle;
+            document.getElementById('t-gen-title').innerText = t.genTitle;
+            document.getElementById('text-input').placeholder = t.genPlaceholder;
+            document.getElementById('t-btn-gen').innerText = t.btnGen;
+            document.getElementById('qr-placeholder').innerText = t.qrWait;
+            document.getElementById('t-dec-title').innerText = t.decTitle;
+            document.getElementById('t-drop-text').innerText = t.dropText;
+            document.getElementById('t-drop-sub').innerText = t.dropSub;
+            document.getElementById('url-input').placeholder = t.urlPlaceholder;
+            document.getElementById('t-btn-dec').innerText = t.btnDec;
+            document.getElementById('t-label-res').innerText = t.labelRes;
+        }
 
         // 应用主题类
-        if (theme === 'dark') document.documentElement.classList.add('dark');
+        function applyTheme() {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+        }
+
+        applyLanguage();
+        applyTheme();
+        document.getElementById('result').innerText = t.resWait;
+
+        // 未通过参数指定时，跟随系统变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!params.get('theme')) { theme = e.matches ? 'dark' : 'light'; applyTheme(); }
+        });
+        window.addEventListener('languagechange', () => {
+            if (!params.get('language')) { lang = navigator.language.startsWith('zh') ? 'zh' : 'en'; applyLanguage(); }
+        });
 
         // --- 2. 原有逻辑适配 ---
         function generateQR() {
