@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>大型PDF浏览 - 支持本地文件 & URL | 按需渲染引擎</title>
     <!-- 引入 PDF.js 核心库 (最新稳定版，支持流式加载和按需渲染) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="vendor/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         // 设置 PDF.js worker 路径 (使用 CDN worker，保证性能)
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
         * {

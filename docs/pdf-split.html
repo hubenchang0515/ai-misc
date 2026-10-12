@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced PDF Splitter</title>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="vendor/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="vendor/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -176,7 +176,7 @@
 
 <script>
     const { PDFDocument, PDFName, PDFHexString, PDFNumber, PDFDict, PDFArray } = PDFLib;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.js/2.16.105/pdf.worker.min.js';
 
     // --- 语言与主题配置 ---
     const i18n = {

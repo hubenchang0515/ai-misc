@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF to PNG Tool</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="vendor/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="vendor/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --primary: #007bff;
@@ -124,7 +124,7 @@
     <div id="output" class="image-container"></div>
 
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.js/3.11.174/pdf.worker.min.js';
 
         // --- 1. 国际化配置 ---
         const i18n = {
@@ -270,7 +270,8 @@
         }
 
         function downloadWorkerScript() {
-            importScripts('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+            // 由 createWorker 注入的本地 jszip 绝对地址（Blob Worker 无法解析相对路径）
+            importScripts(self.__VENDOR_JSZIP__);
             self.onmessage = async (e) => {
                 const currentFilename = e.data[0];
                 const generatedImages = e.data[1];
@@ -287,8 +288,13 @@
         }
 
         function createWorker(fn) {
+            // Blob Worker 的 importScripts 不能解析相对路径，这里先算出本地 jszip 的绝对地址再注入
+            const jszipUrl = new URL('vendor/jszip/3.10.1/jszip.min.js', document.baseURI).href;
             const blob = new Blob(
-                [`(${fn.toString()})()`],
+                [
+                    `self.__VENDOR_JSZIP__ = ${JSON.stringify(jszipUrl)};`,
+                    `(${fn.toString()})()`
+                ],
                 { type: 'application/javascript' }
             );
             return new Worker(URL.createObjectURL(blob));
