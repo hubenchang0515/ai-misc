@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="元素周期表：118 种化学元素的分类、相对原子质量、周期族等信息查询。">
+    <title>元素周期表 · Periodic Table</title>
+    <script src="vendor/tailwindcss/cdn-3.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        // 提前应用主题，避免闪烁
+        if (localStorage.getItem('pt-theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+
+        /* 元素配色（不依赖 Tailwind 动态扫描，保证离线/运行时稳定） */
+        .cat-alkali     { background:#fee2e2; color:#7f1d1d; border-color:#fca5a5; }
+        .cat-alkaline   { background:#ffedd5; color:#7c2d12; border-color:#fdba74; }
+        .cat-transition { background:#fef3c7; color:#78350f; border-color:#fcd34d; }
+        .cat-post       { background:#ecfccb; color:#365314; border-color:#bef264; }
+        .cat-metalloid  { background:#ccfbf1; color:#134e4a; border-color:#5eead4; }
+        .cat-nonmetal   { background:#e0f2fe; color:#0c4a6e; border-color:#7dd3fc; }
+        .cat-halogen    { background:#cffafe; color:#164e63; border-color:#67e8f9; }
+        .cat-noble      { background:#ede9fe; color:#4c1d95; border-color:#c4b5fd; }
+        .cat-lanthanide { background:#fae8ff; color:#701a75; border-color:#f0abfc; }
+        .cat-actinide   { background:#fce7f3; color:#831843; border-color:#f9a8d4; }
+        .cat-unknown    { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+
+        .dark .cat-alkali     { background:rgba(239,68,68,.20);  color:#fecaca; border-color:rgba(239,68,68,.45); }
+        .dark .cat-alkaline   { background:rgba(249,115,22,.20); color:#fed7aa; border-color:rgba(249,115,22,.45); }
+        .dark .cat-transition { background:rgba(245,158,11,.20); color:#fde68a; border-color:rgba(245,158,11,.45); }
+        .dark .cat-post       { background:rgba(132,204,22,.20); color:#d9f99d; border-color:rgba(132,204,22,.45); }
+        .dark .cat-metalloid  { background:rgba(20,184,166,.20); color:#99f6e4; border-color:rgba(20,184,166,.45); }
+        .dark .cat-nonmetal   { background:rgba(14,165,233,.20); color:#bae6fd; border-color:rgba(14,165,233,.45); }
+        .dark .cat-halogen    { background:rgba(6,182,212,.20);  color:#a5f3fc; border-color:rgba(6,182,212,.45); }
+        .dark .cat-noble      { background:rgba(139,92,246,.20); color:#ddd6fe; border-color:rgba(139,92,246,.45); }
+        .dark .cat-lanthanide { background:rgba(217,70,239,.20); color:#f5d0fe; border-color:rgba(217,70,239,.45); }
+        .dark .cat-actinide   { background:rgba(236,72,153,.20); color:#fbcfe8; border-color:rgba(236,72,153,.45); }
+        .dark .cat-unknown    { background:rgba(100,116,139,.30);color:#cbd5e1; border-color:rgba(100,116,139,.50); }
+
+        .pt-grid {
+            display: grid;
+            grid-template-columns: repeat(18, minmax(0, 1fr));
+            gap: 4px;
+            min-width: 880px;
+        }
+        .pt-head { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; }
+        .dark .pt-head { color: #64748b; }
+
+        .pt-cell {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            border-width: 1px;
+            border-style: solid;
+            border-radius: 8px;
+            padding: 2px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+        }
+        .pt-cell:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.18); z-index: 5; }
+        .pt-cell:active { transform: scale(.96); }
+        .pt-cell.is-dim { opacity: .25; }
+        .pt-cell.is-hi { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+        .pt-z { position: absolute; top: 1px; left: 4px; font-size: 8px; line-height: 1; opacity: .65; }
+        .pt-sym { font-size: 15px; font-weight: 700; line-height: 1.05; }
+        .pt-name { width: 100%; font-size: 8px; line-height: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .pt-label {
+            border: 1px dashed #cbd5e1; color: #94a3b8;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px;
+        }
+        .dark .pt-label { border-color: #475569; color: #64748b; }
+        .pt-series { display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 9px; font-weight: 600; }
+        .pt-series-lan { color: #d946ef; }
+        .dark .pt-series-lan { color: #e879f9; }
+        .pt-series-act { color: #ec4899; }
+        .dark .pt-series-act { color: #f472b6; }
+
+        .legend-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid; border-radius: 9999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: opacity .12s ease; }
+        .legend-chip.is-active { outline: 2px solid currentColor; outline-offset: 1px; }
+        .legend-chip.is-dim { opacity: .5; }
+        .legend-chip .dot { width: 8px; height: 8px; border-radius: 9999px; background: currentColor; opacity: .7; }
+
+        .modal-mask { background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px); }
+        .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed rgba(148,163,184,.35); }
+        .detail-row:last-child { border-bottom: none; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen py-6 px-4 transition-colors duration-300">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- 头部 -->
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-5">
+            <div>
+                <h1 id="t-title" class="text-3xl sm:text-4xl font-black tracking-tight">元素周期表</h1>
+                <p id="t-subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1">118 种化学元素 · 点击任意元素查看详情</p>
+            </div>
+
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="relative flex-grow md:w-64">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"/>
+                    </svg>
+                    <input id="search" type="text" autocomplete="off"
+                        class="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+                        placeholder="搜索名称 / 符号 / 序号…">
+                </div>
+                <button id="langBtn" type="button" title="切换语言"
+                    class="px-3 py-2 text-sm font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-blue-400 transition-colors">EN</button>
+                <button id="themeBtn" type="button" title="切换主题"
+                    class="px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-blue-400 transition-colors">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 图例 -->
+        <div id="legend" class="flex flex-wrap gap-2 mb-3"></div>
+        <p id="count" class="text-xs text-slate-400 dark:text-slate-500 mb-3"></p>
+
+        <!-- 周期表 -->
+        <div class="overflow-x-auto pb-2">
+            <div id="grid" class="pt-grid"></div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div id="modal" class="hidden fixed inset-0 z-50 modal-mask items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div id="modalHead" class="p-5 flex items-center gap-4">
+                <div class="leading-none">
+                    <div id="m-symbol" class="text-4xl font-black">H</div>
+                    <div id="m-z" class="text-xs font-mono opacity-70 mt-1">1</div>
+                </div>
+                <div class="min-w-0">
+                    <div id="m-name" class="text-lg font-bold truncate"></div>
+                    <div id="m-name2" class="text-sm opacity-80 truncate"></div>
+                </div>
+            </div>
+            <div class="px-5 pb-5">
+                <div id="m-body" class="text-sm"></div>
+                <button id="closeBtn" type="button"
+                    class="mt-4 w-full py-2.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white text-sm font-semibold hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ========== 1. 分类定义 ========== */
+        const CATEGORIES = {
+            alkali:     { zh: '碱金属',     en: 'Alkali metal',      cls: 'cat-alkali' },
+            alkaline:   { zh: '碱土金属',   en: 'Alkaline earth',    cls: 'cat-alkaline' },
+            transition: { zh: '过渡金属',   en: 'Transition metal',  cls: 'cat-transition' },
+            post:       { zh: '后过渡金属', en: 'Post-transition',   cls: 'cat-post' },
+            metalloid:  { zh: '类金属',     en: 'Metalloid',         cls: 'cat-metalloid' },
+            nonmetal:   { zh: '非金属',     en: 'Nonmetal',          cls: 'cat-nonmetal' },
+            halogen:    { zh: '卤素',       en: 'Halogen',           cls: 'cat-halogen' },
+            noble:      { zh: '稀有气体',   en: 'Noble gas',         cls: 'cat-noble' },
+            lanthanide: { zh: '镧系',       en: 'Lanthanide',        cls: 'cat-lanthanide' },
+            actinide:   { zh: '锕系',       en: 'Actinide',          cls: 'cat-actinide' },
+            unknown:    { zh: '性质未知',   en: 'Unknown',           cls: 'cat-unknown' }
+        };
+
+        /* ========== 2. 元素数据 ==========
+           格式：序号|符号|中文名|英文名|相对原子质量|分类|族|周期|区|常温状态(s固/l液/g气/x未知)
+        */
+        const RAW = `
+1|H|氢|Hydrogen|1.008|nonmetal|1|1|s|g
+2|He|氦|Helium|4.0026|noble|18|1|s|g
+3|Li|锂|Lithium|6.94|alkali|1|2|s|s
+4|Be|铍|Beryllium|9.0122|alkaline|2|2|s|s
+5|B|硼|Boron|10.81|metalloid|13|2|p|s
+6|C|碳|Carbon|12.011|nonmetal|14|2|p|s
+7|N|氮|Nitrogen|14.007|nonmetal|15|2|p|g
+8|O|氧|Oxygen|15.999|nonmetal|16|2|p|g
+9|F|氟|Fluorine|18.998|halogen|17|2|p|g
+10|Ne|氖|Neon|20.180|noble|18|2|p|g
+11|Na|钠|Sodium|22.990|alkali|1|3|s|s
+12|Mg|镁|Magnesium|24.305|alkaline|2|3|s|s
+13|Al|铝|Aluminium|26.982|post|13|3|p|s
+14|Si|硅|Silicon|28.085|metalloid|14|3|p|s
+15|P|磷|Phosphorus|30.974|nonmetal|15|3|p|s
+16|S|硫|Sulfur|32.06|nonmetal|16|3|p|s
+17|Cl|氯|Chlorine|35.45|halogen|17|3|p|g
+18|Ar|氩|Argon|39.95|noble|18|3|p|g
+19|K|钾|Potassium|39.098|alkali|1|4|s|s
+20|Ca|钙|Calcium|40.078|alkaline|2|4|s|s
+21|Sc|钪|Scandium|44.956|transition|3|4|d|s
+22|Ti|钛|Titanium|47.867|transition|4|4|d|s
+23|V|钒|Vanadium|50.942|transition|5|4|d|s
+24|Cr|铬|Chromium|51.996|transition|6|4|d|s
+25|Mn|锰|Manganese|54.938|transition|7|4|d|s
+26|Fe|铁|Iron|55.845|transition|8|4|d|s
+27|Co|钴|Cobalt|58.933|transition|9|4|d|s
+28|Ni|镍|Nickel|58.693|transition|10|4|d|s
+29|Cu|铜|Copper|63.546|transition|11|4|d|s
+30|Zn|锌|Zinc|65.38|transition|12|4|d|s
+31|Ga|镓|Gallium|69.723|post|13|4|p|s
+32|Ge|锗|Germanium|72.630|metalloid|14|4|p|s
+33|As|砷|Arsenic|74.922|metalloid|15|4|p|s
+34|Se|硒|Selenium|78.971|nonmetal|16|4|p|s
+35|Br|溴|Bromine|79.904|halogen|17|4|p|l
+36|Kr|氪|Krypton|83.798|noble|18|4|p|g
+37|Rb|铷|Rubidium|85.468|alkali|1|5|s|s
+38|Sr|锶|Strontium|87.62|alkaline|2|5|s|s
+39|Y|钇|Yttrium|88.906|transition|3|5|d|s
+40|Zr|锆|Zirconium|91.224|transition|4|5|d|s
+41|Nb|铌|Niobium|92.906|transition|5|5|d|s
+42|Mo|钼|Molybdenum|95.95|transition|6|5|d|s
+43|Tc|锝|Technetium|98|transition|7|5|d|s
+44|Ru|钌|Ruthenium|101.07|transition|8|5|d|s
+45|Rh|铑|Rhodium|102.91|transition|9|5|d|s
+46|Pd|钯|Palladium|106.42|transition|10|5|d|s
+47|Ag|银|Silver|107.87|transition|11|5|d|s
+48|Cd|镉|Cadmium|112.41|transition|12|5|d|s
+49|In|铟|Indium|114.82|post|13|5|p|s
+50|Sn|锡|Tin|118.71|post|14|5|p|s
+51|Sb|锑|Antimony|121.76|metalloid|15|5|p|s
+52|Te|碲|Tellurium|127.60|metalloid|16|5|p|s
+53|I|碘|Iodine|126.90|halogen|17|5|p|s
+54|Xe|氙|Xenon|131.29|noble|18|5|p|g
+55|Cs|铯|Caesium|132.91|alkali|1|6|s|s
+56|Ba|钡|Barium|137.33|alkaline|2|6|s|s
+57|La|镧|Lanthanum|138.91|lanthanide|3|6|f|s
+58|Ce|铈|Cerium|140.12|lanthanide|3|6|f|s
+59|Pr|镨|Praseodymium|140.91|lanthanide|3|6|f|s
+60|Nd|钕|Neodymium|144.24|lanthanide|3|6|f|s
+61|Pm|钷|Promethium|145|lanthanide|3|6|f|s
+62|Sm|钐|Samarium|150.36|lanthanide|3|6|f|s
+63|Eu|铕|Europium|151.96|lanthanide|3|6|f|s
+64|Gd|钆|Gadolinium|157.25|lanthanide|3|6|f|s
+65|Tb|铽|Terbium|158.93|lanthanide|3|6|f|s
+66|Dy|镝|Dysprosium|162.50|lanthanide|3|6|f|s
+67|Ho|钬|Holmium|164.93|lanthanide|3|6|f|s
+68|Er|铒|Erbium|167.26|lanthanide|3|6|f|s
+69|Tm|铥|Thulium|168.93|lanthanide|3|6|f|s
+70|Yb|镱|Ytterbium|173.05|lanthanide|3|6|f|s
+71|Lu|镥|Lutetium|174.97|lanthanide|3|6|f|s
+72|Hf|铪|Hafnium|178.49|transition|4|6|d|s
+73|Ta|钽|Tantalum|180.95|transition|5|6|d|s
+74|W|钨|Tungsten|183.84|transition|6|6|d|s
+75|Re|铼|Rhenium|186.21|transition|7|6|d|s
+76|Os|锇|Osmium|190.23|transition|8|6|d|s
+77|Ir|铱|Iridium|192.22|transition|9|6|d|s
+78|Pt|铂|Platinum|195.08|transition|10|6|d|s
+79|Au|金|Gold|196.97|transition|11|6|d|s
+80|Hg|汞|Mercury|200.59|transition|12|6|d|l
+81|Tl|铊|Thallium|204.38|post|13|6|p|s
+82|Pb|铅|Lead|207.2|post|14|6|p|s
+83|Bi|铋|Bismuth|208.98|post|15|6|p|s
+84|Po|钋|Polonium|209|post|16|6|p|s
+85|At|砹|Astatine|210|halogen|17|6|p|s
+86|Rn|氡|Radon|222|noble|18|6|p|g
+87|Fr|钫|Francium|223|alkali|1|7|s|s
+88|Ra|镭|Radium|226|alkaline|2|7|s|s
+89|Ac|锕|Actinium|227|actinide|3|7|f|s
+90|Th|钍|Thorium|232.04|actinide|3|7|f|s
+91|Pa|镤|Protactinium|231.04|actinide|3|7|f|s
+92|U|铀|Uranium|238.03|actinide|3|7|f|s
+93|Np|镎|Neptunium|237|actinide|3|7|f|s
+94|Pu|钚|Plutonium|244|actinide|3|7|f|s
+95|Am|镅|Americium|243|actinide|3|7|f|s
+96|Cm|锔|Curium|247|actinide|3|7|f|s
+97|Bk|锫|Berkelium|247|actinide|3|7|f|s
+98|Cf|锎|Californium|251|actinide|3|7|f|s
+99|Es|锿|Einsteinium|252|actinide|3|7|f|s
+100|Fm|镄|Fermium|257|actinide|3|7|f|s
+101|Md|钔|Mendelevium|258|actinide|3|7|f|s
+102|No|锘|Nobelium|259|actinide|3|7|f|s
+103|Lr|铹|Lawrencium|266|actinide|3|7|f|s
+104|Rf|鑪|Rutherfordium|267|transition|4|7|d|x
+105|Db|𨧀|Dubnium|268|transition|5|7|d|x
+106|Sg|𨭎|Seaborgium|269|transition|6|7|d|x
+107|Bh|𨨏|Bohrium|270|transition|7|7|d|x
+108|Hs|𨭆|Hassium|269|transition|8|7|d|x
+109|Mt|䥑|Meitnerium|278|unknown|9|7|d|x
+110|Ds|鐽|Darmstadtium|281|unknown|10|7|d|x
+111|Rg|錀|Roentgenium|282|unknown|11|7|d|x
+112|Cn|鎶|Copernicium|285|unknown|12|7|d|x
+113|Nh|鉨|Nihonium|286|unknown|13|7|p|x
+114|Fl|鈇|Flerovium|289|unknown|14|7|p|x
+115|Mc|镆|Moscovium|290|unknown|15|7|p|x
+116|Lv|鉝|Livermorium|293|unknown|16|7|p|x
+117|Ts|鿬|Tennessine|294|unknown|17|7|p|x
+118|Og|鿫|Oganesson|294|unknown|18|7|p|x
+`.trim();
+
+        const ELEMENTS = RAW.split('\n').map(line => {
+            const [z, symbol, zh, en, mass, cat, group, period, block, phase] = line.split('|');
+            return { z: +z, symbol, zh, en, mass, cat, group: +group, period: +period, block, phase };
+        });
+        const BY_Z = Object.fromEntries(ELEMENTS.map(e => [e.z, e]));
+
+        /* ========== 3. 国际化 ========== */
+        const i18n = {
+            zh: {
+                title: '元素周期表',
+                subtitle: '118 种化学元素 · 点击任意元素查看详情',
+                search: '搜索名称 / 符号 / 序号…',
+                countFn: n => `共 ${n} 种元素`,
+                detail: { number: '原子序数', symbol: '元素符号', name: '名称', mass: '相对原子质量', category: '类别', group: '族', period: '周期', block: '区', phase: '常温状态' },
+                blocks: { s: 's 区', p: 'p 区', d: 'd 区', f: 'f 区' },
+                phases: { s: '固态', l: '液态', g: '气态', x: '未知' },
+                close: '关闭',
+                series: { lanthanide: '镧系', actinide: '锕系' }
+            },
+            en: {
+                title: 'Periodic Table',
+                subtitle: '118 chemical elements · click any element for details',
+                search: 'Search name / symbol / number…',
+                countFn: n => `${n} elements`,
+                detail: { number: 'Atomic number', symbol: 'Symbol', name: 'Name', mass: 'Atomic mass', category: 'Category', group: 'Group', period: 'Period', block: 'Block', phase: 'Phase (STP)' },
+                blocks: { s: 's-block', p: 'p-block', d: 'd-block', f: 'f-block' },
+                phases: { s: 'Solid', l: 'Liquid', g: 'Gas', x: 'Unknown' },
+                close: 'Close',
+                series: { lanthanide: 'Lanthanides', actinide: 'Actinides' }
+            }
+        };
+
+        let lang = localStorage.getItem('pt-lang') || 'zh';
+        let activeCat = null;
+        const t = () => i18n[lang];
+
+        /* ========== 4. 布局定位 ========== */
+        function positionOf(e) {
+            if (e.z >= 57 && e.z <= 71) return { col: 3 + (e.z - 57), row: 10 };
+            if (e.z >= 89 && e.z <= 103) return { col: 3 + (e.z - 89), row: 11 };
+            return { col: e.group, row: e.period + 1 };
+        }
+
+        /* ========== 5. 渲染 ========== */
+        const grid = document.getElementById('grid');
+        const searchInput = document.getElementById('search');
+
+        function renderGrid() {
+            const L = t();
+            let html = '';
+
+            // 族号表头
+            for (let g = 1; g <= 18; g++) {
+                html += `<div class="pt-head" style="grid-column:${g};grid-row:1">${g}</div>`;
+            }
+
+            // 元素
+            for (const e of ELEMENTS) {
+                const { col, row } = positionOf(e);
+                const name = lang === 'zh' ? e.zh : e.en;
+                html += `<button type="button" class="pt-cell ${CATEGORIES[e.cat].cls}" data-z="${e.z}" style="grid-column:${col};grid-row:${row}" title="${e.z} ${e.symbol} · ${e.zh} / ${e.en}">
+                    <span class="pt-z">${e.z}</span>
+                    <span class="pt-sym">${e.symbol}</span>
+                    <span class="pt-name">${name}</span>
+                </button>`;
+            }
+
+            // 主表中镧系/锕系的占位
+            html += `<div class="pt-label" style="grid-column:3;grid-row:7">57–71</div>`;
+            html += `<div class="pt-label" style="grid-column:3;grid-row:8">89–103</div>`;
+
+            // 镧系/锕系行标签
+            html += `<div class="pt-series pt-series-lan" style="grid-column:1 / span 2;grid-row:10">${L.series.lanthanide}</div>`;
+            html += `<div class="pt-series pt-series-act" style="grid-column:1 / span 2;grid-row:11">${L.series.actinide}</div>`;
+
+            grid.innerHTML = html;
+            applyFilter();
+        }
+
+        function renderLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = Object.entries(CATEGORIES).map(([key, c]) => `
+                <button type="button" data-cat="${key}" class="legend-chip ${c.cls}">
+                    <span class="dot"></span>${lang === 'zh' ? c.zh : c.en}
+                </button>`).join('');
+            legend.querySelectorAll('.legend-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    activeCat = (activeCat === chip.dataset.cat) ? null : chip.dataset.cat;
+                    legend.querySelectorAll('.legend-chip').forEach(c => {
+                        const on = c.dataset.cat === activeCat;
+                        c.classList.toggle('is-active', on);
+                        c.classList.toggle('is-dim', !!activeCat && !on);
+                    });
+                    applyFilter();
+                });
+            });
+        }
+
+        function applyFilter() {
+            const q = searchInput.value.trim().toLowerCase();
+            const filtering = !!q || !!activeCat;
+            let n = 0;
+            grid.querySelectorAll('.pt-cell').forEach(btn => {
+                const e = BY_Z[+btn.dataset.z];
+                const hay = `${e.z} ${e.symbol} ${e.zh} ${e.en}`.toLowerCase();
+                const ok = (!q || hay.includes(q)) && (!activeCat || e.cat === activeCat);
+                btn.classList.toggle('is-dim', !ok);
+                btn.classList.toggle('is-hi', ok && filtering);
+                if (ok) n++;
+            });
+            document.getElementById('count').textContent = t().countFn(n);
+        }
+
+        function applyI18nUI() {
+            const L = t();
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.getElementById('t-title').textContent = L.title;
+            document.getElementById('t-subtitle').textContent = L.subtitle;
+            searchInput.placeholder = L.search;
+            document.getElementById('langBtn').textContent = lang === 'zh' ? 'EN' : '中';
+        }
+
+        /* ========== 6. 详情弹窗 ========== */
+        const modal = document.getElementById('modal');
+
+        function openDetail(z) {
+            const e = BY_Z[z];
+            const cat = CATEGORIES[e.cat];
+            const L = t();
+
+            const head = document.getElementById('modalHead');
+            head.className = `p-5 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 ${cat.cls}`;
+            document.getElementById('m-symbol').textContent = e.symbol;
+            document.getElementById('m-z').textContent = e.z;
+            document.getElementById('m-name').textContent = lang === 'zh' ? e.zh : e.en;
+            document.getElementById('m-name2').textContent = lang === 'zh' ? e.en : e.zh;
+
+            const rows = [
+                [L.detail.number, e.z],
+                [L.detail.symbol, e.symbol],
+                [L.detail.name, `${e.zh} / ${e.en}`],
+                [L.detail.mass, e.mass],
+                [L.detail.category, cat[lang]],
+                [L.detail.group, e.group],
+                [L.detail.period, e.period],
+                [L.detail.block, L.blocks[e.block] || e.block],
+                [L.detail.phase, L.phases[e.phase] || e.phase]
+            ];
+            document.getElementById('m-body').innerHTML = rows.map(([k, v]) => `
+                <div class="detail-row">
+                    <span class="text-slate-500 dark:text-slate-400">${k}</span>
+                    <span class="font-medium text-right">${v}</span>
+                </div>`).join('');
+            document.getElementById('closeBtn').textContent = L.close;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDetail() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        /* ========== 7. 事件绑定 ========== */
+        grid.addEventListener('click', ev => {
+            const btn = ev.target.closest('.pt-cell');
+            if (btn) openDetail(+btn.dataset.z);
+        });
+        document.getElementById('closeBtn').addEventListener('click', closeDetail);
+        modal.addEventListener('click', ev => { if (ev.target === modal) closeDetail(); });
+        document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeDetail(); });
+
+        searchInput.addEventListener('input', applyFilter);
+
+        document.getElementById('langBtn').addEventListener('click', () => {
+            lang = lang === 'zh' ? 'en' : 'zh';
+            localStorage.setItem('pt-lang', lang);
+            applyI18nUI();
+            renderLegend();
+            renderGrid();
+        });
+
+        document.getElementById('themeBtn').addEventListener('click', () => {
+            const dark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('pt-theme', dark ? 'dark' : 'light');
+            document.getElementById('themeIcon').textContent = dark ? '☀️' : '🌙';
+        });
+
+        /* ========== 8. 初始化 ========== */
+        document.getElementById('themeIcon').textContent =
+            document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+        applyI18nUI();
+        renderLegend();
+        renderGrid();
+    </script>
+</body>
+</html>
