@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="JWT 编解码工具：解析、校验、生成 JSON Web Token（HS256/384/512 签名，RS/ES/PS 验签）。">
+    <title>JWT 编解码 · JWT Tool</title>
+    <script src="vendor/tailwindcss/cdn-3.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        // 跟随系统主题（不提供手动切换按钮）
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+        .seg-header { color: #e11d48; }
+        .seg-payload { color: #7c3aed; }
+        .seg-signature { color: #0284c7; }
+        .seg-dot { color: #94a3b8; }
+        .dark .seg-header { color: #fb7185; }
+        .dark .seg-payload { color: #a78bfa; }
+        .dark .seg-signature { color: #38bdf8; }
+
+        .code-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 12.5px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 260px;
+            overflow: auto;
+        }
+        .dark .code-box { background: #0f172a; border-color: #1e293b; }
+
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+        .badge-ok { background: #dcfce7; color: #166534; }
+        .badge-fail { background: #fee2e2; color: #991b1b; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #e2e8f0; color: #334155; }
+        .dark .badge-ok { background: rgba(34,197,94,.2); color: #86efac; }
+        .dark .badge-fail { background: rgba(239,68,68,.2); color: #fca5a5; }
+        .dark .badge-warn { background: rgba(245,158,11,.2); color: #fcd34d; }
+        .dark .badge-info { background: rgba(148,163,184,.2); color: #cbd5e1; }
+
+        .field { width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 12px; font-size: 13px; outline: none; background: #fff; }
+        .field:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+        .dark .field { background: #0f172a; border-color: #1e293b; color: #e2e8f0; }
+
+        .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: all .25s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen py-8 px-4 transition-colors duration-300">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-black tracking-tight">
+                    JWT <span class="text-indigo-600 dark:text-indigo-400">TOOL</span>
+                </h1>
+                <p id="t-subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1">解析 · 校验 · 生成 JSON Web Token（纯前端处理）</p>
+            </div>
+        </header>
+
+        <div class="grid lg:grid-cols-2 gap-6">
+
+            <!-- ============ 解码 / 校验 ============ -->
+            <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <span class="w-2 h-5 rounded bg-rose-500"></span>
+                    <span data-i18n="secDecode">解码 / 校验</span>
+                </h2>
+
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="labelToken">JWT 令牌</label>
+                <textarea id="token" rows="4" spellcheck="false"
+                    class="field mono resize-y"
+                    placeholder="xxxxxxxxx.yyyyyyyyy.zzzzzzzzz"></textarea>
+
+                <div id="decError" class="hidden mt-3 text-sm rounded-xl px-3 py-2 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300"></div>
+
+                <div id="decoded" class="mt-4 space-y-4">
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Token</div>
+                        <div id="segLine" class="code-box mono !text-[13px] !max-h-none"></div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="decodedHeader">头部（Header）</span>
+                        </div>
+                        <pre id="outHeader" class="code-box mono"></pre>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="decodedPayload">载荷（Payload）</span>
+                            <span id="expBadge"></span>
+                        </div>
+                        <pre id="outPayload" class="code-box mono"></pre>
+                        <div id="claims" class="mt-2 text-xs text-slate-500 dark:text-slate-400 space-y-1"></div>
+                    </div>
+
+                    <div>
+                        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="signature">签名（Signature）</div>
+                        <pre id="outSignature" class="code-box mono"></pre>
+                    </div>
+                </div>
+
+                <!-- 签名校验 -->
+                <div class="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-bold" data-i18n="verifyTitle">签名校验</span>
+                        <span id="verifyBadge" class="badge badge-info">—</span>
+                    </div>
+
+                    <div id="secretRow" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="secretLabel">密钥（HMAC Secret）</label>
+                        <input id="decSecret" type="text" class="field mono" data-i18n-ph="phSecret" placeholder="输入密钥…">
+                    </div>
+
+                    <div id="pemRow" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="pemLabel">公钥（PEM，用于 RS / ES / PS）</label>
+                        <textarea id="decPem" rows="4" class="field mono resize-y" data-i18n-ph="phPem" placeholder="-----BEGIN PUBLIC KEY-----…"></textarea>
+                    </div>
+
+                    <p id="verifyHint" class="text-xs text-slate-400 dark:text-slate-500"></p>
+                </div>
+            </section>
+
+            <!-- ============ 编码 / 签名 ============ -->
+            <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <span class="w-2 h-5 rounded bg-indigo-500"></span>
+                    <span data-i18n="secEncode">编码 / 签名</span>
+                </h2>
+
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="col-span-1">
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="encAlg">算法</label>
+                        <select id="encAlg" class="field">
+                            <option>HS256</option>
+                            <option>HS384</option>
+                            <option>HS512</option>
+                            <option value="none">none</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2" id="encSecretWrap">
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="encSecret">密钥</label>
+                        <input id="encSecret" type="text" class="field mono" placeholder="secret">
+                    </div>
+                </div>
+
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="encHeader">头部 JSON</label>
+                <textarea id="encHeader" rows="4" spellcheck="false" class="field mono resize-y mb-4"></textarea>
+
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1" data-i18n="encPayload">载荷 JSON</label>
+                <textarea id="encPayload" rows="7" spellcheck="false" class="field mono resize-y"></textarea>
+
+                <div id="encError" class="hidden mt-3 text-sm rounded-xl px-3 py-2 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300"></div>
+
+                <div class="flex items-center justify-between mt-4 mb-1">
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="encOutput">生成的 JWT</span>
+                    <button id="copyBtn" type="button" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline" data-i18n="btnCopy">复制</button>
+                </div>
+                <textarea id="encOutput" rows="5" readonly class="field mono resize-y bg-slate-50 dark:bg-slate-950"></textarea>
+            </section>
+        </div>
+
+        <footer class="text-center text-xs text-slate-400 dark:text-slate-600 mt-10">
+            <span data-i18n="footer">所有计算均在浏览器本地完成，不会上传任何数据。</span>
+        </footer>
+    </div>
+
+    <div id="toast" class="toast px-4 py-2 rounded-xl bg-slate-800 text-white text-sm shadow-lg"></div>
+
+    <script>
+        /* ========== 国际化 ========== */
+        const i18n = {
+            zh: {
+                subtitle: '解析 · 校验 · 生成 JSON Web Token（纯前端处理）',
+                secDecode: '解码 / 校验', secEncode: '编码 / 签名',
+                labelToken: 'JWT 令牌', decodedHeader: '头部（Header）', decodedPayload: '载荷（Payload）', signature: '签名（Signature）',
+                verifyTitle: '签名校验', secretLabel: '密钥（HMAC Secret）', phSecret: '输入密钥…',
+                pemLabel: '公钥（PEM，用于 RS / ES / PS）', phPem: '-----BEGIN PUBLIC KEY-----…',
+                encAlg: '算法', encSecret: '密钥', encHeader: '头部 JSON', encPayload: '载荷 JSON', encOutput: '生成的 JWT',
+                btnCopy: '复制', copied: '已复制', footer: '所有计算均在浏览器本地完成，不会上传任何数据。',
+                errFormat: '格式错误：JWT 应包含以「.」分隔的 3 段。',
+                errB64: 'Base64URL 解码失败：', errJson: 'JSON 解析失败',
+                decHeader: '头部', decPayload: '载荷', decSignature: '签名',
+                emptyPayload: '（空载荷）', emptySig: '（无签名）',
+                tIat: '签发时间', tNbf: '生效时间', tExp: '过期时间',
+                expired: '已过期', notYet: '尚未生效', active: '有效',
+                vNeedKey: '输入密钥后自动校验', vNone: 'alg=none，无签名', vUnsupported: '暂不支持校验该算法：',
+                vOk: '签名有效', vFail: '签名无效', vError: '校验出错：',
+                noSubtle: '当前环境不支持 Web Crypto（需 HTTPS 或 localhost）。',
+                encHintNone: 'alg=none 不需要密钥。', encUnsupported: '仅支持 HS256 / HS384 / HS512 与 none 生成签名。'
+            },
+            en: {
+                subtitle: 'Decode · Verify · Generate JSON Web Tokens (all local)',
+                secDecode: 'Decode / Verify', secEncode: 'Encode / Sign',
+                labelToken: 'JWT token', decodedHeader: 'Header', decodedPayload: 'Payload', signature: 'Signature',
+                verifyTitle: 'Signature verification', secretLabel: 'HMAC secret', phSecret: 'Enter secret…',
+                pemLabel: 'Public key (PEM, for RS / ES / PS)', phPem: '-----BEGIN PUBLIC KEY-----…',
+                encAlg: 'Algorithm', encSecret: 'Secret', encHeader: 'Header JSON', encPayload: 'Payload JSON', encOutput: 'Generated JWT',
+                btnCopy: 'Copy', copied: 'Copied', footer: 'Everything runs locally in your browser; nothing is uploaded.',
+                errFormat: 'Malformed: a JWT must have 3 dot-separated segments.',
+                errB64: 'Base64URL decode failed: ', errJson: 'JSON parse failed',
+                decHeader: 'Header', decPayload: 'Payload', decSignature: 'Signature',
+                emptyPayload: '(empty payload)', emptySig: '(no signature)',
+                tIat: 'Issued at', tNbf: 'Not before', tExp: 'Expires at',
+                expired: 'Expired', notYet: 'Not yet valid', active: 'Valid',
+                vNeedKey: 'Enter a key to verify automatically', vNone: 'alg=none, no signature', vUnsupported: 'Verification not supported for: ',
+                vOk: 'Signature valid', vFail: 'Signature invalid', vError: 'Verification error: ',
+                noSubtle: 'Web Crypto unavailable (requires HTTPS or localhost).',
+                encHintNone: 'alg=none requires no secret.', encUnsupported: 'Only HS256 / HS384 / HS512 and none are supported for signing.'
+            }
+        };
+
+        const lang = 'zh';
+        const t = () => i18n[lang];
+        const $ = id => document.getElementById(id);
+
+        /* ========== Base64URL / UTF-8 ========== */
+        function bytesToB64u(bytes) {
+            let bin = '';
+            for (const b of bytes) bin += String.fromCharCode(b);
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        function b64uToBytes(str) {
+            let s = String(str).replace(/-/g, '+').replace(/_/g, '/');
+            while (s.length % 4) s += '=';
+            const bin = atob(s);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        }
+        const utf8ToB64u = str => bytesToB64u(new TextEncoder().encode(str));
+        const b64uToUtf8 = str => new TextDecoder().decode(b64uToBytes(str));
+
+        /* ========== 解析 ========== */
+        function decodeToken(raw) {
+            raw = raw.trim().replace(/^Bearer\s+/i, '');
+            if (!raw) return null;
+            const parts = raw.split('.');
+            if (parts.length !== 3) throw new Error(t().errFormat);
+            const headerRaw = b64uToUtf8(parts[0]);
+            const payloadRaw = b64uToUtf8(parts[1]);
+            let header = null, payload = null;
+            try { header = JSON.parse(headerRaw); } catch (e) {}
+            try { payload = JSON.parse(payloadRaw); } catch (e) {}
+            return { parts, header, payload, headerRaw, payloadRaw };
+        }
+
+        const pretty = obj => JSON.stringify(obj, null, 2);
+        const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+        /* ========== Web Crypto ========== */
+        const hasSubtle = () => !!(window.crypto && window.crypto.subtle);
+
+        function pemToArrayBuffer(pem) {
+            const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+            return b64uToBytes(b64.replace(/-/g, '+').replace(/_/g, '/')).buffer;
+        }
+
+        async function hmacSign(alg, secret, data) {
+            const hash = 'SHA-' + alg.slice(2);
+            const key = await crypto.subtle.importKey(
+                'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash }, false, ['sign']);
+            const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+            return bytesToB64u(new Uint8Array(sig));
+        }
+
+        async function verifySignature(alg, signingInput, sigB64u, keyMaterial) {
+            if (!hasSubtle()) throw new Error(t().noSubtle);
+            const sig = b64uToBytes(sigB64u);
+            const data = new TextEncoder().encode(signingInput);
+            const hash = 'SHA-' + alg.slice(2);
+
+            if (/^HS(256|384|512)$/.test(alg)) {
+                const key = await crypto.subtle.importKey(
+                    'raw', new TextEncoder().encode(keyMaterial), { name: 'HMAC', hash }, false, ['verify']);
+                return crypto.subtle.verify('HMAC', key, sig, data);
+            }
+
+            const buf = pemToArrayBuffer(keyMaterial);
+            const prefix = alg.slice(0, 2);
+
+            if (prefix === 'RS') {
+                const key = await crypto.subtle.importKey('spki', buf, { name: 'RSASSA-PKCS1-v1_5', hash }, false, ['verify']);
+                return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, data);
+            }
+            if (prefix === 'PS') {
+                const key = await crypto.subtle.importKey('spki', buf, { name: 'RSA-PSS', hash }, false, ['verify']);
+                const saltLength = { 256: 32, 384: 48, 512: 64 }[alg.slice(2)];
+                return crypto.subtle.verify({ name: 'RSA-PSS', saltLength }, key, sig, data);
+            }
+            if (prefix === 'ES') {
+                const namedCurve = { 256: 'P-256', 384: 'P-384', 512: 'P-521' }[alg.slice(2)];
+                const key = await crypto.subtle.importKey('spki', buf, { name: 'ECDSA', namedCurve }, false, ['verify']);
+                return crypto.subtle.verify({ name: 'ECDSA', hash }, key, sig, data);
+            }
+            throw new Error(t().vUnsupported + alg);
+        }
+
+        /* ========== 解码渲染 ========== */
+        function renderSegments(parts) {
+            const labels = [t().decHeader, t().decPayload, t().decSignature];
+            const cls = ['seg-header', 'seg-payload', 'seg-signature'];
+            let html = '';
+            parts.forEach((p, i) => {
+                if (i > 0) html += `<span class="seg-dot">.</span>`;
+                html += `<span class="${cls[i]}" title="${labels[i]}">${esc(p) || '(empty)'}</span>`;
+            });
+            $('segLine').innerHTML = html;
+        }
+
+        function fmtTime(sec) {
+            const d = new Date(sec * 1000);
+            return isNaN(d) ? String(sec) : d.toLocaleString();
+        }
+
+        function humanize(diffSec) {
+            const abs = Math.abs(Math.floor(diffSec));
+            const d = Math.floor(abs / 86400), h = Math.floor(abs % 86400 / 3600), m = Math.floor(abs % 3600 / 60), s = abs % 60;
+            const parts = [];
+            if (d) parts.push(d + 'd');
+            if (h) parts.push(h + 'h');
+            if (m) parts.push(m + 'm');
+            if (!d && !h) parts.push(s + 's');
+            return parts.join(' ');
+        }
+
+        function renderClaims(payload) {
+            const box = $('claims');
+            const badge = $('expBadge');
+            box.innerHTML = '';
+            badge.innerHTML = '';
+            if (!payload || typeof payload !== 'object') return;
+
+            const now = Math.floor(Date.now() / 1000);
+            const rows = [];
+            const add = (label, key, cls) => {
+                if (payload[key] === undefined) return;
+                rows.push(`<div class="flex justify-between gap-3">
+                    <span>${label}</span>
+                    <span class="mono ${cls || ''}">${esc(fmtTime(payload[key]))}</span>
+                </div>`);
+            };
+            add(t().tIat, 'iat');
+            add(t().tNbf, 'nbf');
+            add(t().tExp, 'exp');
+            box.innerHTML = rows.join('');
+
+            if (payload.exp !== undefined) {
+                const diff = payload.exp - now;
+                if (diff < 0) {
+                    badge.className = 'badge badge-fail';
+                    badge.textContent = `${t().expired} · ${humanize(diff)}`;
+                } else if (payload.nbf !== undefined && payload.nbf > now) {
+                    badge.className = 'badge badge-warn';
+                    badge.textContent = t().notYet;
+                } else {
+                    badge.className = 'badge badge-ok';
+                    badge.textContent = `${t().active} · ${humanize(diff)}`;
+                }
+            }
+        }
+
+        function showError(msg) {
+            const el = $('decError');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+        function clearError() { $('decError').classList.add('hidden'); }
+
+        /* ========== 校验 ========== */
+        let verifySeq = 0;
+        function setVerify(state, msg) {
+            const el = $('verifyBadge');
+            const hint = $('verifyHint');
+            if (state === 'ok') { el.className = 'badge badge-ok'; el.textContent = '✓ ' + t().vOk; hint.textContent = ''; }
+            else if (state === 'fail') { el.className = 'badge badge-fail'; el.textContent = '✗ ' + t().vFail; hint.textContent = ''; }
+            else if (state === 'none') { el.className = 'badge badge-info'; el.textContent = t().vNone; hint.textContent = ''; }
+            else if (state === 'error') { el.className = 'badge badge-fail'; el.textContent = t().vError; hint.textContent = msg || ''; }
+            else { el.className = 'badge badge-info'; el.textContent = '—'; hint.textContent = t().vNeedKey; }
+        }
+
+        function updateKeyInputs(alg) {
+            const isHs = /^HS(256|384|512)$/.test(alg || '');
+            const isPk = /^(RS|PS|ES)(256|384|512)$/.test(alg || '');
+            $('secretRow').classList.toggle('hidden', !isHs);
+            $('pemRow').classList.toggle('hidden', !isPk);
+            if (alg === 'none') setVerify('none');
+            else if (!alg) setVerify('idle');
+        }
+
+        async function runVerify() {
+            const raw = $('token').value.trim();
+            if (!raw) { setVerify('idle'); return; }
+            let d;
+            try { d = decodeToken(raw); } catch (e) { setVerify('idle'); return; }
+            const alg = d.header && d.header.alg;
+            updateKeyInputs(alg);
+
+            if (!alg || alg === 'none') return;
+            if (!hasSubtle()) { setVerify('error', t().noSubtle); return; }
+
+            let key;
+            if (/^HS/.test(alg)) {
+                key = $('decSecret').value;
+                if (!key) { setVerify('idle'); return; }
+            } else {
+                key = $('decPem').value;
+                if (!key.trim()) { setVerify('idle'); return; }
+            }
+
+            const seq = ++verifySeq;
+            try {
+                const ok = await verifySignature(alg, d.parts[0] + '.' + d.parts[1], d.parts[2], key);
+                if (seq !== verifySeq) return;
+                setVerify(ok ? 'ok' : 'fail');
+            } catch (err) {
+                if (seq !== verifySeq) return;
+                setVerify('error', err.message);
+            }
+        }
+
+        /* ========== 解码入口 ========== */
+        function decodeAndRender() {
+            const raw = $('token').value.trim();
+            clearError();
+            if (!raw) {
+                $('segLine').innerHTML = '';
+                $('outHeader').textContent = '';
+                $('outPayload').textContent = '';
+                $('outSignature').textContent = '';
+                $('claims').innerHTML = '';
+                $('expBadge').innerHTML = '';
+                setVerify('idle');
+                $('secretRow').classList.add('hidden');
+                $('pemRow').classList.add('hidden');
+                return;
+            }
+            let d;
+            try { d = decodeToken(raw); } catch (e) { showError(e.message); return; }
+
+            renderSegments(d.parts);
+            $('outHeader').textContent = d.header ? pretty(d.header) : d.headerRaw;
+            $('outPayload').textContent = d.payload ? pretty(d.payload) : (d.payloadRaw || t().emptyPayload);
+            $('outSignature').textContent = d.parts[2] || t().emptySig;
+            renderClaims(d.payload);
+            runVerify();
+        }
+
+        /* ========== 编码 ========== */
+        let encSeq = 0;
+        function encError(msg) {
+            const el = $('encError');
+            if (!msg) { el.classList.add('hidden'); return; }
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function encode() {
+            const hText = $('encHeader').value.trim();
+            const pText = $('encPayload').value.trim();
+            let header, payload;
+            try { header = JSON.parse(hText); }
+            catch (e) { encError(t().errJson + ' (header)'); $('encOutput').value = ''; return; }
+            try { payload = JSON.parse(pText); }
+            catch (e) { encError(t().errJson + ' (payload)'); $('encOutput').value = ''; return; }
+
+            const alg = header.alg || 'HS256';
+            const h = utf8ToB64u(JSON.stringify(header));
+            const p = utf8ToB64u(JSON.stringify(payload));
+            const signingInput = h + '.' + p;
+
+            if (alg === 'none') {
+                encError(null);
+                $('encOutput').value = signingInput + '.';
+                return;
+            }
+            if (!/^HS(256|384|512)$/.test(alg)) { encError(t().encUnsupported); $('encOutput').value = ''; return; }
+            if (!hasSubtle()) { encError(t().noSubtle); $('encOutput').value = ''; return; }
+
+            const secret = $('encSecret').value;
+            const seq = ++encSeq;
+            try {
+                const sig = await hmacSign(alg, secret, signingInput);
+                if (seq !== encSeq) return;
+                encError(null);
+                $('encOutput').value = signingInput + '.' + sig;
+            } catch (err) {
+                if (seq !== encSeq) return;
+                encError(err.message);
+            }
+        }
+
+        function syncAlgToHeader() {
+            const alg = $('encAlg').value;
+            try {
+                const h = JSON.parse($('encHeader').value);
+                h.alg = alg === 'none' ? 'none' : alg;
+                $('encHeader').value = pretty(h);
+            } catch (e) {}
+            $('encSecretWrap').classList.toggle('hidden', alg === 'none');
+        }
+
+        function syncHeaderToAlg() {
+            try {
+                const h = JSON.parse($('encHeader').value);
+                if (h.alg && [...$('encAlg').options].some(o => o.value === h.alg)) {
+                    $('encAlg').value = h.alg;
+                    $('encSecretWrap').classList.toggle('hidden', h.alg === 'none');
+                }
+            } catch (e) {}
+        }
+
+        /* ========== 通用 ========== */
+        function showToast(msg) {
+            const el = $('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 1400);
+        }
+
+        function applyI18n() {
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const k = el.dataset.i18n;
+                if (t()[k] !== undefined) el.textContent = t()[k];
+            });
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+                const k = el.dataset.i18nPh;
+                if (t()[k] !== undefined) el.placeholder = t()[k];
+            });
+            $('copyBtn').textContent = t().btnCopy;
+            decodeAndRender();
+        }
+
+        /* ========== 初始化 ========== */
+        function defaultSample() {
+            const now = Math.floor(Date.now() / 1000);
+            $('encHeader').value = pretty({ alg: 'HS256', typ: 'JWT' });
+            $('encPayload').value = pretty({
+                sub: '1234567890',
+                name: 'John Doe',
+                admin: true,
+                iat: now,
+                exp: now + 3600
+            });
+            $('encSecret').value = 'your-256-bit-secret';
+        }
+
+        // 事件
+        $('token').addEventListener('input', decodeAndRender);
+        $('decSecret').addEventListener('input', runVerify);
+        $('decPem').addEventListener('input', runVerify);
+
+        $('encAlg').addEventListener('change', () => { syncAlgToHeader(); encode(); });
+        $('encHeader').addEventListener('input', () => { syncHeaderToAlg(); encode(); });
+        $('encPayload').addEventListener('input', encode);
+        $('encSecret').addEventListener('input', encode);
+
+        $('copyBtn').addEventListener('click', () => {
+            const v = $('encOutput').value;
+            if (!v) return;
+            navigator.clipboard.writeText(v).then(() => showToast(t().copied)).catch(() => {
+                $('encOutput').select(); document.execCommand('copy'); showToast(t().copied);
+            });
+        });
+
+        defaultSample();
+        applyI18n();
+        encode();
+    </script>
+</body>
+</html>
