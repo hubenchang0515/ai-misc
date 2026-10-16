@@ -27,6 +27,7 @@ AI 生成的一些乱七八糟的应用
 * [随机数生成](https://hubenchang0515.github.io/ai-misc/random)
 * [舒尔特表测试](https://hubenchang0515.github.io/ai-misc/schulte-grid)
 * [贪吃蛇](https://hubenchang0515.github.io/ai-misc/snake)
+* [网页链接分析器](https://hubenchang0515.github.io/ai-misc/link-analyzer)
 * [俄罗斯方块](https://hubenchang0515.github.io/ai-misc/tetris)
 * [艺术字图片生成](https://hubenchang0515.github.io/ai-misc/text-img)
 * [验证码生成](https://hubenchang0515.github.io/ai-misc/verification-code)

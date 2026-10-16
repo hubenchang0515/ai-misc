@@ -141,6 +141,31 @@ if (theme !== 'light' && theme !== 'dark') {
 * [工具名称](https://hubenchang0515.github.io/ai-misc/tool-name)
 ```
 
+### 7. 运行时抓取外部 URL：先直连，失败再用代理
+
+浏览器端直接 `fetch` 其他站点普遍会被 CORS 拦截。需要在运行时抓取第三方页面/资源的工具，统一采用「**先直连、失败再回退到公共代理**」的顺序，不要一上来就走代理（同源或允许 CORS 的站点可直连成功，省流量也更快）：
+
+```js
+const PROXY = 'https://hmoexyz.qzz.io/api/proxy/get?url=';
+
+// 1. 直连
+try {
+    const r = await fetch(url, { redirect: 'follow' });
+    if (r.ok) return await r.text();
+    // 4xx/5xx 也视为直连失败（可能被防爬拦截），继续尝试代理
+} catch (e) { /* 多为 CORS 拦截，转代理 */ }
+
+// 2. 回退代理
+const r = await fetch(PROXY + encodeURIComponent(url), { redirect: 'follow' });
+if (!r.ok) throw new Error('抓取失败');
+return await r.text();
+```
+
+- 代理接口格式：`https://hmoexyz.qzz.io/api/proxy/get?url=${encodeURIComponent(url)}`（GET，也支持 HEAD）。
+- 该代理**透传上游状态码**（200/301/404… 原样返回），因此也可用于批量 HTTP 状态码检测；状态检测同样按「先直连 HEAD、再代理」的顺序。
+- 代理不可用或站点始终抓取失败时，给出友好降级提示（如引导用户改用「粘贴 HTML 源码」模式），不要静默失败。
+- 完整参考实现见 `docs/link-analyzer.html` 的 `fetchPage()` 与 `probeStatus()`。
+
 ## 开发与部署
 
 没有构建、测试或 lint 步骤。直接编辑 `docs/` 下的文件，用浏览器打开即可调试。
@@ -169,6 +194,6 @@ npm run deploy       # npx wrangler pages deploy docs --branch main
 
 - **纯前端、保护隐私**：不要在服务端处理用户数据，避免引入需要后端的上传接口。
 - **离线可用**：第三方 JS/CSS/字体已本地化到 `docs/vendor/`，页面不依赖 CDN；引入新依赖请按第 3 节处理。
-- **仍依赖网络的功能**（属预期）：`linux-cmd` 的 sitemap、`pdf-view` 的示例 PDF、`qrcode` 解析远程图片时的 `corsproxy` 等运行时数据/接口未本地化。
+- **仍依赖网络的功能**（属预期）：`linux-cmd` 的 sitemap、`pdf-view` 的示例 PDF、`qrcode` 解析远程图片时的 `corsproxy` 等运行时数据/接口未本地化；抓取第三方 URL 请按第 7 节「先直连、失败再用代理」处理。
 - 新工具即新文件，不要修改无关工具的行为。
 - 修改主页 `toolsData` 后，请顺带确认 `README.md` 已同步。

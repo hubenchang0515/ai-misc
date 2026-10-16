@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="canonical" href="https://misc.xplanc.org/link-analyzer"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="网页链接分析器：输入网址或粘贴 HTML 源码，统计内链外链、锚文本、rel 属性、相对/绝对链接比例，检测 SEO 链接问题并给出健康度评分。">
+    <title>网页链接分析器</title>
+    <script src="vendor/tailwindcss/cdn-3.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        // 主题默认：URL 参数 ?theme= 优先，否则跟随系统（无手动切换按钮）
+        (function () {
+            const p = new URLSearchParams(location.search).get('theme');
+            if (p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="vendor/font-awesome/7.0.1/css/all.min.css">
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+               background-image: radial-gradient(1100px 480px at 8% -12%, rgba(99,102,241,.16), transparent 62%),
+                                 radial-gradient(900px 420px at 94% -6%, rgba(6,182,212,.14), transparent 58%);
+               background-attachment: fixed; }
+        html.dark body { background-image: radial-gradient(1100px 480px at 8% -12%, rgba(99,102,241,.22), transparent 62%),
+                                radial-gradient(900px 420px at 94% -6%, rgba(6,182,212,.16), transparent 58%); }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+        /* 渐变大标题（整行同一渐变，含中英模式的强调片段） */
+        .grad-title { background: linear-gradient(95deg, #4f46e5 0%, #9333ea 45%, #06b6d4 100%);
+                      -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+        .field { width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 12px; font-size: 13px; outline: none; background: #fff; }
+        .field:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,.2); }
+        .dark .field { background: #0f172a; border-color: #1e293b; color: #e2e8f0; }
+
+        textarea.field { resize: vertical; min-height: 220px; line-height: 1.6; font-size: 12.5px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px;
+               background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 55%, #0891b2 100%);
+               color: #fff; border: 0; border-radius: 10px;
+               padding: 10px 22px; font-size: 14px; font-weight: 700; cursor: pointer;
+               box-shadow: 0 6px 18px rgba(124,58,237,.38);
+               transition: transform .15s, box-shadow .15s, filter .15s; }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 8px 22px rgba(124,58,246,.45); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-ghost { background: transparent; color: #475569; border: 1px solid #e2e8f0; padding: 5px 13px; font-size: 12px; font-weight: 600; border-radius: 8px; transition: all .15s; }
+        .btn-ghost:hover { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }
+        .btn-ghost.active { background: linear-gradient(135deg, #6366f1, #a855f7); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+        .dark .btn-ghost { color: #94a3b8; border-color: #1e293b; }
+        .dark .btn-ghost:hover { background: rgba(99,102,241,.15); border-color: #4f46e5; color: #a5b4fc; }
+        .dark .btn-ghost.active { background: linear-gradient(135deg, #6366f1, #a855f7); border-color: transparent; color: #fff; }
+
+        .tab { border: 1.5px solid #e2e8f0; background: #fff; color: #475569; border-radius: 10px; padding: 8px 16px;
+               font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s; }
+        .tab:hover { border-color: #c4b5fd; color: #7c3aed; }
+        .tab.active { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%); border-color: transparent; color: #fff;
+                      box-shadow: 0 5px 16px rgba(124,58,237,.4); }
+        .dark .tab { background: #0f172a; border-color: #1e293b; color: #94a3b8; }
+        .dark .tab:hover { border-color: #4f46e5; color: #a5b4fc; }
+        .dark .tab.active { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%); border-color: transparent; color: #fff; }
+
+        .badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 5px; white-space: nowrap; line-height: 1.6; letter-spacing: .2px; }
+        .b-int { background: #16a34a; color: #fff; }
+        .b-ext { background: #2563eb; color: #fff; }
+        .b-nf  { background: #dc2626; color: #fff; }
+        .b-sp  { background: #d97706; color: #fff; }
+        .b-ugc { background: #7c3aed; color: #fff; }
+        .b-mut { background: #e2e8f0; color: #475569; }
+        .b-img { background: #0d9488; color: #fff; }
+        .b-js  { background: #ea580c; color: #fff; }
+        .b-abs { background: #2563eb; color: #fff; }
+        .b-root { background: #16a34a; color: #fff; }
+        .b-path { background: #d97706; color: #fff; }
+        .b-proto { background: #7c3aed; color: #fff; }
+        .dark .b-mut { background: #334155; color: #cbd5e1; }
+
+        .status-badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 5px; min-width: 34px; text-align: center; }
+        .st-ok { background: #16a34a; color: #fff; }
+        .st-redirect { background: #2563eb; color: #fff; }
+        .st-err { background: #d97706; color: #fff; }
+        .st-pending { background: #e2e8f0; color: #64748b; }
+        .dark .st-pending { background: #334155; color: #94a3b8; }
+
+        .lt-row { display: grid; grid-template-columns: 30px minmax(0,1.3fr) minmax(0,1fr) 74px 60px; gap: 8px;
+                  padding: 8px 14px; border-bottom: 1px solid rgba(226,228,235,.6); font-size: 12px; align-items: start; }
+        .lt-row:nth-child(even) { background: rgba(99,102,241,.035); }
+        .lt-row:hover { background: rgba(168,85,247,.1); }
+        .dark .lt-row:nth-child(even) { background: rgba(99,102,241,.07); }
+        .dark .lt-row:hover { background: rgba(168,85,247,.14); }
+        .lt-head { display: grid; grid-template-columns: 30px minmax(0,1.3fr) minmax(0,1fr) 74px 60px; gap: 8px;
+                   padding: 9px 14px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+                   color: #fff; background: linear-gradient(90deg, #4f46e5, #9333ea 60%, #0891b2); }
+        .dark .lt-row { border-color: rgba(30,41,59,.6); }
+        @media (max-width: 640px) {
+            .lt-row, .lt-head { grid-template-columns: 24px minmax(0,1fr) 66px 52px; }
+            .lt-row > .col-anchor, .lt-head > .col-anchor { display: none; }
+        }
+
+        .ins-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; border-bottom: 1px solid rgba(226,228,235,.6); border-left: 4px solid transparent; }
+        .ins-row:last-child { border-bottom: 0; }
+        .ins-dot { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+        .ins-pass { background: #16a34a; color: #fff; }
+        .ins-warn { background: #f59e0b; color: #fff; }
+        .ins-err { background: #dc2626; color: #fff; }
+        .ins-info { background: #6366f1; color: #fff; }
+        .ins-row.r-pass { border-left-color: #16a34a; background: rgba(22,163,74,.05); }
+        .ins-row.r-warn { border-left-color: #f59e0b; background: rgba(245,158,11,.06); }
+        .ins-row.r-err { border-left-color: #dc2626; background: rgba(220,38,38,.05); }
+        .ins-row.r-info { border-left-color: #6366f1; background: rgba(99,102,241,.045); }
+        .dark .ins-row.r-pass { background: rgba(22,163,74,.08); }
+        .dark .ins-row.r-warn { background: rgba(245,158,11,.08); }
+        .dark .ins-row.r-err { background: rgba(220,38,38,.08); }
+        .dark .ins-row.r-info { background: rgba(99,102,241,.1); }
+
+        .dist-bar { flex: 1; height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+        .dark .dist-bar { background: #1e293b; }
+        .dist-fill { height: 100%; border-radius: 4px;
+                     background-image: linear-gradient(90deg, #6366f1, #a855f7, #06b6d4); }
+        .dist-fill.f-blue { background-image: linear-gradient(90deg, #0ea5e9, #2563eb); }
+
+        /* 统计卡：顶部色条 + 大号彩色数字 */
+        .stat-card { position: relative; overflow: hidden; text-align: center; padding: 12px 8px 10px;
+                     border-radius: 14px; border: 1px solid rgba(148,163,184,.28);
+                     background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 9%, #fff), #fff 70%); }
+        .stat-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+                             background: linear-gradient(90deg, var(--sc), color-mix(in srgb, var(--sc) 45%, #fff)); }
+        .stat-card .stat-val { color: var(--sc); text-shadow: 0 0 14px color-mix(in srgb, var(--sc) 35%, transparent); }
+        .stat-card .stat-lbl { color: #64748b; }
+        .dark .stat-card { border-color: rgba(148,163,184,.2);
+                           background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 20%, #0f172a), #0f172a 75%); }
+        .dark .stat-card .stat-lbl { color: #94a3b8; }
+
+        /* 评分卡：随分数着色的渐变底 */
+        .score-card { border: 1px solid color-mix(in srgb, var(--sc, #6366f1) 35%, transparent);
+                      background: linear-gradient(165deg, color-mix(in srgb, var(--sc, #6366f1) 14%, #fff), #fff 72%); }
+        .dark .score-card { border-color: color-mix(in srgb, var(--sc, #6366f1) 45%, transparent);
+                            background: linear-gradient(165deg, color-mix(in srgb, var(--sc, #6366f1) 26%, #0f172a), #0f172a 78%); }
+
+        /* 底部建议条：彩色渐变 */
+        .tip-bar { background: linear-gradient(90deg, rgba(99,102,241,.14), rgba(168,85,247,.14) 50%, rgba(6,182,212,.14));
+                   border: 1px solid rgba(139,92,246,.4); }
+        .tip-bar b { color: #6d28d9; }
+        .dark .tip-bar b { color: #c4b5fd; }
+
+        /* 分布面板标题条 */
+        .panel-head { color: #fff; }
+        .panel-head.ph-blue { background: linear-gradient(90deg, #0284c7, #2563eb); }
+        .panel-head.ph-pink { background: linear-gradient(90deg, #9333ea, #0891b2); }
+        .panel-head.ph-ded { background: linear-gradient(90deg, #e11d48, #f59e0b); }
+
+        /* 扣分明细 */
+        .ded-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                   padding: 8px 16px; border-bottom: 1px solid rgba(226,228,235,.6); font-size: 13px; }
+        .ded-row:last-child { border-bottom: 0; }
+        .ded-row:nth-child(even) { background: rgba(244,63,94,.045); }
+        .dark .ded-row:nth-child(even) { background: rgba(244,63,94,.08); }
+        .ded-label { color: #334155; font-weight: 600; }
+        .dark .ded-label { color: #cbd5e1; }
+        .ded-pill { flex-shrink: 0; min-width: 40px; text-align: center;
+                    background: linear-gradient(135deg, #e11d48, #f43f5e); color: #fff;
+                    font-weight: 800; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+                    box-shadow: 0 2px 8px rgba(225,29,72,.35); }
+        /* 小号扣分徽标（评分卡内 / 洞察行内）：与正文等高，不撑行 */
+        .ded-chip { display: inline-block; background: linear-gradient(135deg, #e11d48, #f43f5e); color: #fff;
+                    font-size: 10px; font-weight: 800; padding: 0 6px; border-radius: 5px;
+                    line-height: 1.5; vertical-align: 1px; letter-spacing: .2px; }
+
+        /* 说明标题小竖条 & 结果页网址 */
+        .guide-accent { background: linear-gradient(180deg, #6366f1, #06b6d4); }
+        .url-pill { color: #7c3aed; }
+        .dark .url-pill { color: #c4b5fd; }
+
+        .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: all .25s ease; z-index: 60; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4);
+                border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen py-8 px-4 transition-colors duration-300">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6">
+            <h1 class="grad-title text-3xl sm:text-4xl font-black tracking-tight"><span data-i18n="h1Main">网页链接分析器</span><span data-i18n="h1Accent"></span></h1>
+            <p id="t-subtitle" data-i18n="subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                内链外链 · 锚文本 · rel 属性 · 相对/绝对链接 · SEO 健康度评分（纯前端分析）
+            </p>
+        </header>
+
+        <!-- ============ 输入区 ============ -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm mb-6">
+            <div class="flex gap-2 mb-4 flex-wrap">
+                <button id="tabUrl" class="tab active" onclick="switchMode('url')">
+                    <i class="fa-solid fa-link mr-1"></i><span data-i18n="tabUrl">输入网址</span>
+                </button>
+                <button id="tabHtml" class="tab" onclick="switchMode('html')">
+                    <i class="fa-solid fa-code mr-1"></i><span data-i18n="tabHtml">粘贴 HTML 源码</span>
+                </button>
+            </div>
+
+            <div id="inputUrl" class="space-y-3">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="urlInput" type="text" class="field mono flex-1" data-i18n-ph="phUrl"
+                        placeholder="输入网址，如 example.com 或 https://example.com/page"
+                        onkeydown="if(event.key==='Enter')doAnalyze()">
+                    <button id="btnAnalyzeUrl" class="btn" onclick="doAnalyze()">
+                        <i class="fa-solid fa-magnifying-glass"></i><span data-i18n="btnAnalyze">分析链接</span>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 dark:text-slate-500" data-i18n="urlHint">
+                    部分站点有防爬保护，可能抓取失败；失败时请改用「粘贴 HTML 源码」。
+                </p>
+            </div>
+
+            <div id="inputHtml" class="hidden space-y-3">
+                <textarea id="htmlInput" class="field mono" data-i18n-ph="phHtml"
+                    placeholder="在此粘贴完整 HTML 源码（浏览器中右键 → 查看网页源代码 → 全选复制）…"></textarea>
+                <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <input id="baseInput" type="text" class="field mono flex-1" data-i18n-ph="phBase"
+                        placeholder="可选：页面网址（用于识别内外链、解析相对链接），如 https://example.com/page">
+                    <button id="btnAnalyzeHtml" class="btn" onclick="doAnalyze()">
+                        <i class="fa-solid fa-magnifying-glass"></i><span data-i18n="btnAnalyze">分析链接</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="errorBox" class="hidden mt-3 text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"></div>
+        </section>
+
+        <!-- ============ 结果区 ============ -->
+        <div id="results" class="hidden space-y-6"></div>
+
+        <!-- ============ 说明 ============ -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm mt-6">
+            <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+                <span class="w-2 h-5 rounded guide-accent"></span><span data-i18n="guideTitle">使用说明</span>
+            </h2>
+            <ul class="text-sm text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed list-disc pl-5">
+                <li data-i18n="g1">输入网址模式：抓取该网址的页面内容，并以它为基准解析所有相对链接；有防爬保护的站点可能抓取失败。</li>
+                <li data-i18n="g2">粘贴源码模式：相对链接按原始路径展示；填写页面网址后可进一步识别内外链并解析相对链接。</li>
+                <li data-i18n="g3">链接类型：内链（同域名）、外链（不同域名）、锚点 #、mailto/tel、JavaScript 链接、空链接。</li>
+                <li data-i18n="g4">href 书写方式：绝对链接、根相对（/path）、路径相对（../path）、协议相对（//cdn）。站内推荐根相对路径。</li>
+                <li data-i18n="g5">常见问题：内链加 nofollow、空锚文本、图片链接缺 alt、target=_blank 缺 noopener、HTTP 混合内容、路径相对链接。</li>
+                <li data-i18n="g6">状态检测：批量检查去重后的前 50 个 URL（HEAD 请求），2xx 正常 / 3xx 重定向 / 4xx·5xx 错误 / 0 无法连接。</li>
+            </ul>
+        </section>
+
+        <footer class="text-center text-xs text-slate-400 dark:text-slate-600 mt-8">
+            <span data-i18n="footer">所有分析均在浏览器本地完成，不会上传任何数据。</span>
+        </footer>
+    </div>
+
+    <div id="toast" class="toast px-4 py-2 rounded-xl bg-slate-800 text-white text-sm shadow-lg"></div>
+
+    <script>
+        /* ========== 国际化 ========== */
+        const i18n = {
+            zh: {
+                pageTitle: '网页链接分析器',
+                h1Main: '网页链接分析器', h1Accent: '',
+                subtitle: '内链外链 · 锚文本 · rel 属性 · 相对/绝对链接 · SEO 健康度评分（纯前端分析）',
+                tabHtml: '粘贴 HTML 源码', tabUrl: '输入网址',
+                phHtml: '在此粘贴完整 HTML 源码（浏览器中右键 → 查看网页源代码 → 全选复制）…',
+                phBase: '可选：页面网址（用于识别内外链、解析相对链接），如 https://example.com/page',
+                phUrl: '输入网址，如 example.com 或 https://example.com/page',
+                btnAnalyze: '分析链接', analyzing: '分析中…',
+                urlHint: '部分站点有防爬保护，可能抓取失败；失败时请改用「粘贴 HTML 源码」。',
+                errHtml: '请先粘贴 HTML 源码。', errUrl: '请输入网址。', errBase: '网址格式不正确：',
+                errFetch: '抓取失败（目标站点可能有防爬保护或拒绝访问）。请改用「粘贴 HTML 源码」模式。',
+                errParse: '未能解析出任何链接。',
+                guideTitle: '使用说明',
+                g1: '输入网址模式：抓取该网址的页面内容，并以它为基准解析所有相对链接；有防爬保护的站点可能抓取失败。',
+                g2: '粘贴源码模式：相对链接按原始路径展示；填写页面网址后可进一步识别内外链并解析相对链接。',
+                g3: '链接类型：内链（同域名）、外链（不同域名）、锚点 #、mailto/tel、JavaScript 链接、空链接。',
+                g4: 'href 书写方式：绝对链接、根相对（/path）、路径相对（../path）、协议相对（//cdn）。站内推荐根相对路径。',
+                g5: '常见问题：内链加 nofollow、空锚文本、图片链接缺 alt、target=_blank 缺 noopener、HTTP 混合内容、路径相对链接。',
+                g6: '状态检测：批量检查去重后的前 50 个 URL（HEAD 请求），2xx 正常 / 3xx 重定向 / 4xx·5xx 错误 / 0 无法连接。',
+                footer: '所有分析均在浏览器本地完成，不会上传任何数据。',
+
+                scoreLabel: '链接健康度', scTotal: '总链接', scInternal: '内链', scExternal: '外链',
+                scAbsolute: '绝对链接', scRelative: '相对链接', scNofollow: 'nofollow',
+                scNoAnchor: '无锚文本', scDup: '重复 URL', scImage: '图片链接',
+                qExcellent: '优秀', qGood: '良好', qFair: '一般', qPoor: '需改进',
+                dedTitle: '扣分明细', dedNone: '无扣分项', dedNoneDetail: '所有评分项均达标。',
+                dedUnit: '−{n} 分', dedOf100: '/ 100 分',
+
+                vAll: '全部', vInternal: '内链', vExternal: '外链', vAbsolute: '绝对链接',
+                vRelative: '相对链接', vIssues: '扣分项', vDomains: '域名分布', vAnchors: '锚文本',
+                checkStatus: '检测状态', noMatch: '没有符合条件的链接',
+                thIndex: '#', thUrl: 'URL / Href', thAnchor: '锚文本', thType: '类型', thStatus: '状态',
+                rawHref: '原始', noAnchorTxt: '（无）',
+
+                tInternal: '内链', tExternal: '外链', tAnchor: '锚点', tMailto: '邮件', tTel: '电话',
+                tJs: 'JS', tEmpty: '空链接', tData: 'data', tOther: '其他',
+                hAbsolute: '绝对', hRoot: '根相对', hPath: '路径相对', hProto: '协议相对',
+
+                domTitle: '外链域名分布', domNone: '没有外部链接',
+                anchorTitle: '锚文本分析', anchorNone: '没有锚文本数据', anchorCount: '种',
+                anchorIn: '内', anchorOut: '外',
+                tip: '优先修复 404 死链与空链接，内链使用描述性锚文本；站内推荐根相对路径（/path），外链 target="_blank" 应加 rel="noopener"。',
+
+                // 洞察
+                insNoIntT: '页面没有内链', insNoIntD: '缺少内链会削弱站内权重传导，建议添加至少 3-5 个指向相关内容的内链。',
+                insFewIntT: '内链偏少', insFewIntD: '当前仅 {n} 个内链，建议补充到 3-5 个以上。',
+                insOkIntT: '内链数量正常', insOkIntD: '共 {n} 个内链，站内权重传导良好。',
+                insNoExtT: '页面没有外链', insNoExtD: '适当引用权威外部资源可增强内容可信度（非硬性要求）。',
+                insEmptyAnchorT: '存在空锚文本', insEmptyAnchorD: '共 {n} 个链接没有可读文字（含缺 alt 的图片链接），搜索引擎难以理解其含义。',
+                insNofollowIntT: '内链被加了 nofollow', insNofollowIntD: '共 {n} 个内链带 nofollow，会阻断站内权重传递，除非确实不想传递权重，否则应移除。',
+                insEmptyT: '存在空链接', insEmptyD: '共 {n} 个链接没有 href，对 SEO 无价值，应修复或移除。',
+                insJsT: '存在 JavaScript 链接', insJsD: '共 {n} 个 javascript: 链接，搜索引擎通常无法跟踪，建议改为真实 URL。',
+                insMixedT: '存在 HTTP 混合内容', insMixedD: '共 {n} 个 https 页面引用的 http:// 链接，存在安全与内容告警风险。',
+                insImgAltT: '图片链接缺少 alt', insImgAltD: '共 {n} 个图片链接没有 alt 属性，相当于缺失锚文本。',
+                insPathRelT: '存在路径相对链接', insPathRelD: '共 {n} 个路径相对链接（如 ../page），站点结构变化时容易出错，建议改为根相对路径。',
+                insBlankT: '新窗口链接缺少 noopener', insBlankD: '共 {n} 个 target="_blank" 链接未加 rel="noopener"，存在安全风险。',
+                insOkT: '未发现明显链接问题', insOkD: '链接结构健康，继续保持描述性锚文本与规范的链接写法。',
+                insDupT: '存在重复链接', insDupD: '{n} 个 URL 被重复引用，适度重复无妨，但避免同一目标堆砌大量重复链接。',
+
+                // 单链接问题
+                issEmpty: '空链接：缺少 href',
+                issJs: 'JavaScript 链接，搜索引擎难以跟踪',
+                issNofollowInt: '内链不应加 nofollow，会阻断权重传递',
+                issNoAnchor: '空锚文本：链接没有可读文字',
+                issImgAlt: '图片链接缺少 alt 属性',
+                issBlank: 'target="_blank" 未加 rel="noopener"，存在安全风险',
+                issMixed: '混合内容：HTTPS 页面中的 HTTP 链接',
+                issPathRel: '路径相对链接，建议改为根相对（/path）',
+                issProtoRel: '协议相对链接（//…），现已不推荐',
+                issDup: '重复链接：相同 URL 出现多次',
+                stChecking: '检测中…', stNone: '—'
+            },
+            en: {
+                pageTitle: 'Link Analyzer',
+                h1Main: 'LINK ', h1Accent: 'ANALYZER',
+                subtitle: 'Internal/external links · Anchor text · rel attributes · Relative vs absolute · SEO health score (100% local)',
+                tabHtml: 'Paste HTML source', tabUrl: 'Enter URL',
+                phHtml: 'Paste the full HTML source here (right-click → View Page Source → Select All → Copy)…',
+                phBase: 'Optional: page URL (to tell internal/external and resolve relative links), e.g. https://example.com/page',
+                phUrl: 'Enter a URL, e.g. example.com or https://example.com/page',
+                btnAnalyze: 'Analyze', analyzing: 'Analyzing…',
+                urlHint: 'Some sites block automated fetching and may fail; if so, switch to "Paste HTML source".',
+                errHtml: 'Please paste HTML source first.', errUrl: 'Please enter a URL.', errBase: 'Invalid URL: ',
+                errFetch: 'Fetch failed (the site may block automated requests). Please use "Paste HTML source" instead.',
+                errParse: 'No links could be parsed.',
+                guideTitle: 'How to use',
+                g1: 'URL mode: the page is fetched from that URL, which then becomes the base for resolving relative links.',
+                g2: 'Paste-source mode: relative links keep their raw form; fill in the page URL to classify internal/external and resolve them.',
+                g3: 'Link types: internal (same domain), external, anchor #, mailto/tel, JavaScript links, empty links.',
+                g4: 'href styles: absolute, root-relative (/path), path-relative (../path), protocol-relative (//cdn). Root-relative is recommended.',
+                g5: 'Common issues: nofollow on internal links, empty anchor text, image links without alt, target="_blank" without noopener, mixed HTTP content.',
+                g6: 'Status check: HEAD requests for the first 50 unique URLs — 2xx OK / 3xx redirect / 4xx·5xx error / 0 unreachable.',
+                footer: 'All analysis runs locally in your browser; nothing is uploaded.',
+
+                scoreLabel: 'Link health', scTotal: 'Total', scInternal: 'Internal', scExternal: 'External',
+                scAbsolute: 'Absolute', scRelative: 'Relative', scNofollow: 'nofollow',
+                scNoAnchor: 'No anchor', scDup: 'Duplicate', scImage: 'Image links',
+                qExcellent: 'Excellent', qGood: 'Good', qFair: 'Fair', qPoor: 'Needs work',
+                dedTitle: 'Deductions', dedNone: 'No deductions', dedNoneDetail: 'All scoring checks passed.',
+                dedUnit: '−{n} pts', dedOf100: '/ 100',
+
+                vAll: 'All', vInternal: 'Internal', vExternal: 'External', vAbsolute: 'Absolute',
+                vRelative: 'Relative', vIssues: 'Deductions', vDomains: 'Domains', vAnchors: 'Anchors',
+                checkStatus: 'Check status', noMatch: 'No links match this filter',
+                thIndex: '#', thUrl: 'URL / Href', thAnchor: 'Anchor text', thType: 'Type', thStatus: 'Status',
+                rawHref: 'raw', noAnchorTxt: '(none)',
+
+                tInternal: 'int', tExternal: 'ext', tAnchor: 'anchor', tMailto: 'mail', tTel: 'tel',
+                tJs: 'JS', tEmpty: 'empty', tData: 'data', tOther: 'other',
+                hAbsolute: 'abs', hRoot: 'root-rel', hPath: 'path-rel', hProto: 'proto-rel',
+
+                domTitle: 'External domain distribution', domNone: 'No external links',
+                anchorTitle: 'Anchor text analysis', anchorNone: 'No anchor text data', anchorCount: 'unique',
+                anchorIn: 'in', anchorOut: 'out',
+                tip: 'Fix 404s and empty links first, use descriptive anchor text for internal links; prefer root-relative paths, and add rel="noopener" to target="_blank" external links.',
+
+                insNoIntT: 'No internal links', insNoIntD: 'Add at least 3-5 internal links to related content to keep link equity flowing.',
+                insFewIntT: 'Few internal links', insFewIntD: 'Only {n} internal links found; consider raising it to 3-5 or more.',
+                insOkIntT: 'Healthy internal link count', insOkIntD: '{n} internal links found; link equity flows well.',
+                insNoExtT: 'No external links', insNoExtD: 'Citing authoritative sources can improve trustworthiness (not mandatory).',
+                insEmptyAnchorT: 'Empty anchor text found', insEmptyAnchorD: '{n} links have no readable text (including image links without alt), so search engines cannot understand them.',
+                insNofollowIntT: 'nofollow on internal links', insNofollowIntD: '{n} internal links carry nofollow, blocking internal link equity. Remove it unless intentional.',
+                insEmptyT: 'Empty links found', insEmptyD: '{n} links have no href; they are useless for SEO — fix or remove them.',
+                insJsT: 'JavaScript links found', insJsD: '{n} javascript: links typically cannot be crawled; use real URLs instead.',
+                insMixedT: 'Mixed HTTP content', insMixedD: '{n} http:// links on an HTTPS page cause security and mixed-content warnings.',
+                insImgAltT: 'Image links missing alt', insImgAltD: '{n} image links have no alt attribute, effectively missing anchor text.',
+                insPathRelT: 'Path-relative links found', insPathRelD: '{n} path-relative links (e.g. ../page) break when structure changes; prefer root-relative paths.',
+                insBlankT: 'target="_blank" without noopener', insBlankD: '{n} links open in a new window without rel="noopener" (security risk).',
+                insOkT: 'No obvious link issues', insOkD: 'Link structure looks healthy — keep using descriptive anchors and clean href styles.',
+                insDupT: 'Duplicate links found', insDupD: '{n} URLs are referenced more than once; moderate duplication is fine, avoid stacking.',
+
+                issEmpty: 'Empty link: missing href',
+                issJs: 'JavaScript link, hard to crawl',
+                issNofollowInt: 'nofollow on internal link blocks link equity',
+                issNoAnchor: 'Empty anchor text: no readable text',
+                issImgAlt: 'Image link missing alt attribute',
+                issBlank: 'target="_blank" without rel="noopener" (security risk)',
+                issMixed: 'Mixed content: HTTP link on HTTPS page',
+                issPathRel: 'Path-relative link; prefer root-relative (/path)',
+                issProtoRel: 'Protocol-relative link (//…) is deprecated',
+                issDup: 'Duplicate link: same URL used multiple times',
+                stChecking: 'Checking…', stNone: '—'
+            }
+        };
+
+        // 语言默认：?language= 优先，否则跟随系统
+        const _langParam = new URLSearchParams(location.search).get('language');
+        let lang = (_langParam === 'zh' || _langParam === 'en')
+            ? _langParam
+            : ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+        const t = () => i18n[lang];
+        const $ = id => document.getElementById(id);
+        const fmt = (s, vars) => s.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined ? vars[k] : m));
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // 静态文案套用（data-i18n / data-i18n-ph）
+        function applyI18n() {
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.title = t().pageTitle;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const v = t()[el.dataset.i18n];
+                if (v !== undefined) el.textContent = v;
+            });
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+                const v = t()[el.dataset.i18nPh];
+                if (v !== undefined) el.placeholder = v;
+            });
+        }
+
+        /* ========== 主题 / 语言跟随系统 ========== */
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!new URLSearchParams(location.search).get('theme')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+        window.addEventListener('languagechange', () => {
+            if (_langParam === 'zh' || _langParam === 'en') return; // ?language= 显式指定时不跟随系统
+            lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+            applyI18n();
+            if (result) render();
+        });
+
+        /* ========== 全局状态 ========== */
+        let mode = 'url';        // 默认：输入网址
+        let result = null;       // 分析结果
+        let viewTab = 'all';     // 当前视图
+        let linkStatuses = {};   // URL -> {code}
+        let isChecking = false;
+        const STATUS_PROXY = 'https://hmoexyz.qzz.io/api/proxy/get?url=';
+
+        function switchMode(m) {
+            mode = m;
+            $('tabHtml').classList.toggle('active', m === 'html');
+            $('tabUrl').classList.toggle('active', m === 'url');
+            $('inputHtml').classList.toggle('hidden', m !== 'html');
+            $('inputUrl').classList.toggle('hidden', m !== 'url');
+            $('errorBox').classList.add('hidden');
+        }
+
+        function showErr(msg) {
+            const box = $('errorBox');
+            box.textContent = '⚠️ ' + msg;
+            box.classList.remove('hidden');
+        }
+
+        function toast(msg) {
+            const el = $('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(el._h);
+            el._h = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+
+        /* ========== 规范化网址 ========== */
+        function normalizeUrl(input) {
+            let s = String(input || '').trim();
+            if (!s) return '';
+            if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) s = 'https://' + s;
+            try {
+                const u = new URL(s);
+                return u.href;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        /* ========== 链接分析核心 ========== */
+        const SCHEME_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*):/;
+
+        // 判断 href 的书写方式
+        function hrefTypeOf(href) {
+            if (!href) return 'none';
+            if (href.startsWith('//')) return 'protocol_relative';
+            const m = href.match(SCHEME_RE);
+            if (m) return 'absolute';                 // http:, https:, mailto:, javascript: ...
+            if (href.startsWith('/')) return 'root_relative';
+            if (href.startsWith('#')) return 'anchor_frag';
+            return 'path_relative';
+        }
+
+        // 去掉 www 前缀便于域名比较
+        const normHost = h => String(h || '').toLowerCase().replace(/^www\./, '');
+
+        function analyzeHTML(html, baseUrl) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nodes = Array.from(doc.querySelectorAll('a'));
+
+            // 页面基准：优先用户提供的网址
+            let base = null;
+            if (baseUrl) {
+                try { base = new URL(baseUrl); } catch (e) { base = null; }
+            }
+
+            // 未提供基准时，尝试从 <link rel="canonical"> / og:url 中取页面网址
+            let baseSource = baseUrl ? 'input' : '';
+            if (!base) {
+                const cand = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
+                    || doc.querySelector('meta[property="og:url"]')?.getAttribute('content')
+                    || '';
+                if (/^https?:\/\//i.test(cand)) {
+                    try { base = new URL(cand); baseSource = 'canonical'; } catch (e) { }
+                }
+            }
+
+            // 仍无基准时，用出现最多的绝对链接域名作为站点域名（启发式）
+            if (!base) {
+                const counts = {};
+                nodes.forEach(a => {
+                    const href = (a.getAttribute('href') || '').trim();
+                    if (/^https?:\/\//i.test(href)) {
+                        try { const h = new URL(href).hostname; counts[h] = (counts[h] || 0) + 1; } catch (e) { }
+                    }
+                });
+                const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+                if (best) { try { base = new URL('https://' + best + '/'); baseSource = 'heuristic'; } catch (e) { } }
+            }
+            const siteHost = base ? normHost(base.hostname) : '';
+            // 仅当页面网址（输入或 canonical）明确为 https 时才判定混合内容（域名启发式不算）
+            const baseHttps = (baseSource === 'input' || baseSource === 'canonical') && !!base && base.protocol === 'https:';
+
+            const links = [];
+            const urlCount = {};
+
+            nodes.forEach(a => {
+                const rawHref = a.getAttribute('href');
+                const href = rawHref === null ? '' : String(rawHref).trim();
+                const hrefType = hrefTypeOf(href);
+
+                // 锚文本与图片
+                const anchor = (a.textContent || '').replace(/\s+/g, ' ').trim();
+                const img = a.querySelector('img');
+                const imgAlt = img ? (img.getAttribute('alt') || '').trim() : '';
+                const hasImage = !!img;
+
+                // rel / target
+                const rel = (a.getAttribute('rel') || '').toLowerCase();
+                const relTokens = rel.split(/\s+/).filter(Boolean);
+                const nofollow = relTokens.includes('nofollow');
+                const sponsored = relTokens.includes('sponsored');
+                const ugc = relTokens.includes('ugc');
+                const noopener = relTokens.includes('noopener') || relTokens.includes('noreferrer');
+                const target = (a.getAttribute('target') || '').toLowerCase();
+
+                // 解析为绝对 URL
+                let resolved = null;
+                let scheme = null;
+                const sm = href.match(SCHEME_RE);
+                if (sm) scheme = sm[1].toLowerCase();
+                if (href && !href.startsWith('#')) {
+                    if (!scheme || scheme === 'http' || scheme === 'https') {
+                        if (base) { try { resolved = new URL(href, base).href; } catch (e) { } }
+                        else if (scheme) { try { resolved = new URL(href).href; } catch (e) { } }
+                    }
+                }
+
+                // 链接类型
+                let type;
+                if (!href) type = 'empty';
+                else if (scheme === 'javascript') type = 'javascript';
+                else if (scheme === 'mailto') type = 'mailto';
+                else if (scheme === 'tel') type = 'tel';
+                else if (scheme === 'data') type = 'data';
+                else if (href.startsWith('#')) type = 'anchor';
+                else {
+                    // 需要判定内/外链：优先用解析结果的域名，其次根/路径相对视为站内
+                    let host = null;
+                    if (resolved) { try { host = normHost(new URL(resolved).hostname); } catch (e) { } }
+                    if (host && siteHost) {
+                        // 已知站点域名：按域名是否相同区分内外链
+                        type = host === siteHost ? 'internal' : 'external';
+                    } else if (hrefType === 'root_relative' || hrefType === 'path_relative') {
+                        // 相对路径必然站内
+                        type = 'internal';
+                    } else {
+                        // 无基准时绝对链接无法判断，默认按外链处理
+                        type = host ? 'external' : 'other';
+                    }
+                }
+
+                const link = {
+                    href, hrefType, type, anchor, imgAlt, hasImage,
+                    nofollow, sponsored, ugc, noopener, target, resolved, issues: []
+                };
+
+                // 每链接问题判定（keys 关联评分扣分类别，一条可对应多类扣分）
+                if (type === 'empty') link.issues.push({ level: 'error', msg: t().issEmpty, keys: ['empty'] });
+                if (type === 'javascript') link.issues.push({ level: 'warning', msg: t().issJs, keys: ['js'] });
+                if (nofollow && type === 'internal') link.issues.push({ level: 'warning', msg: t().issNofollowInt, keys: ['nofollowInt'] });
+
+                if (type === 'internal' || type === 'external') {
+                    if (!anchor) {
+                        if (hasImage && !imgAlt) link.issues.push({ level: 'warning', msg: t().issImgAlt, keys: ['imgAlt', 'noAnchor'] });
+                        else if (!hasImage) link.issues.push({ level: 'warning', msg: t().issNoAnchor, keys: ['noAnchor'] });
+                    } else if (hasImage && !imgAlt) {
+                        // 有锚文本但图片缺 alt：统计仍计入 img_no_alt，对应 imgAlt 扣分
+                        link.issues.push({ level: 'warning', msg: t().issImgAlt, keys: ['imgAlt'] });
+                    }
+                    if (target === '_blank' && (type === 'external') && !noopener) {
+                        link.issues.push({ level: 'warning', msg: t().issBlank });
+                    }
+                    if (baseHttps && resolved && /^http:\/\//i.test(resolved)) {
+                        link.issues.push({ level: 'warning', msg: t().issMixed, keys: ['mixed'] });
+                    }
+                    if (hrefType === 'path_relative') link.issues.push({ level: 'warning', msg: t().issPathRel });
+                    if (hrefType === 'protocol_relative') link.issues.push({ level: 'info', msg: t().issProtoRel });
+                }
+
+                links.push(link);
+            });
+
+            // 重复 URL 统计（按解析结果或原始 href）
+            const seen = {};
+            links.forEach(l => {
+                const key = l.resolved || l.href;
+                if (!key || l.type === 'empty') return;
+                urlCount[key] = (urlCount[key] || 0) + 1;
+            });
+            links.forEach(l => {
+                const key = l.resolved || l.href;
+                l.isDuplicate = !!key && l.type !== 'empty' && urlCount[key] > 1;
+                if (l.isDuplicate) l.issues.push({ level: 'info', msg: t().issDup });
+            });
+
+            /* ---------- 统计 ---------- */
+            const s = {
+                total: links.length, internal: 0, external: 0,
+                anchor: 0, mailto: 0, tel: 0, javascript: 0, empty: 0, other: 0,
+                absolute: 0, root_relative: 0, path_relative: 0, protocol_relative: 0, relative_total: 0,
+                nofollow: 0, no_anchor: 0, image_links: 0, img_no_alt: 0,
+                blank_noopener: 0, mixed_http: 0, dup_urls: 0, issue_links: 0
+            };
+            const NAV = ['internal', 'external']; // 参与链接健康统计的类型
+            const domains = {};       // 外链域名 -> 次数
+            const anchorMap = {};     // 锚文本 -> {count,internal,external}
+            const checkSet = new Set();
+
+            links.forEach(l => {
+                if (s[l.type] !== undefined) s[l.type]++;
+                if (NAV.includes(l.type) && ['absolute', 'root_relative', 'path_relative', 'protocol_relative'].includes(l.hrefType)) s[l.hrefType]++;
+                if (l.nofollow) s.nofollow++;
+                if (NAV.includes(l.type)) {
+                    if (!l.anchor && !(l.hasImage && l.imgAlt)) s.no_anchor++;
+                    if (l.hasImage) s.image_links++;
+                    if (l.hasImage && !l.imgAlt) s.img_no_alt++;
+                    if (l.target === '_blank' && l.type === 'external' && !l.noopener) s.blank_noopener++;
+                    if (baseHttps && /^http:\/\//i.test(l.resolved || '')) s.mixed_http++;
+                }
+                if (l.issues.length) s.issue_links++;
+                if (l.type === 'external') {
+                    try { const h = new URL(l.resolved).hostname; domains[h] = (domains[h] || 0) + 1; } catch (e) { }
+                }
+                const at = l.anchor || (l.hasImage && l.imgAlt ? l.imgAlt : '');
+                if (at && (l.type === 'internal' || l.type === 'external')) {
+                    if (!anchorMap[at]) anchorMap[at] = { text: at, count: 0, internal: 0, external: 0 };
+                    anchorMap[at].count++;
+                    anchorMap[at][l.type]++;
+                }
+                if (l.resolved && /^https?:\/\//i.test(l.resolved)) checkSet.add(l.resolved);
+            });
+
+            s.relative_total = s.root_relative + s.path_relative + s.protocol_relative;
+            s.dup_urls = Object.keys(urlCount).filter(k => urlCount[k] > 1).length;
+
+            const externalDomains = Object.keys(domains).sort((a, b) => domains[b] - domains[a])
+                .reduce((o, k) => (o[k] = domains[k], o), {});
+            const anchorTexts = Object.values(anchorMap).sort((a, b) => b.count - a.count).slice(0, 100);
+            const checkableUrls = Array.from(checkSet).slice(0, 50);
+
+            /* ---------- 健康度评分（0-100），逐项记录扣分 ---------- */
+            let score = 100;
+            const nofollowInt = links.filter(l => l.type === 'internal' && l.nofollow).length;
+            const dedList = [];   // [{key,label,points}]
+            const dedMap = {};    // key -> points
+            // 扣分为 0 时不记录（points 可为 0，内部过滤）
+            const addDed = (key, label, points) => {
+                if (points > 0) { dedList.push({ key, label, points }); dedMap[key] = points; score -= points; }
+            };
+            if (s.internal === 0) addDed('noInt', t().insNoIntT, 25);
+            else if (s.internal < 3) addDed('fewInt', t().insFewIntT, 10);
+            addDed('noAnchor', t().insEmptyAnchorT, Math.min(s.no_anchor * 3, 15));
+            addDed('nofollowInt', t().insNofollowIntT, Math.min(nofollowInt * 5, 15));
+            addDed('empty', t().insEmptyT, Math.min(s.empty * 3, 10));
+            addDed('js', t().insJsT, Math.min(s.javascript * 3, 10));
+            addDed('mixed', t().insMixedT, Math.min(s.mixed_http * 2, 10));
+            addDed('imgAlt', t().insImgAltT, Math.min(s.img_no_alt * 3, 10));
+            score = Math.max(0, Math.round(score));
+
+            // 把各类扣分按顺序分摊到具体链接问题上（受上限约束，各行扣分之和 = 扣分明细之和）
+            const CAT_UNIT = { noAnchor: 3, nofollowInt: 5, empty: 3, js: 3, mixed: 2, imgAlt: 3 };
+            Object.keys(CAT_UNIT).forEach(k => {
+                let remain = dedMap[k] || 0;
+                if (remain <= 0) return;
+                for (let i = 0; i < links.length && remain > 0; i++) {
+                    for (const is of links[i].issues) {
+                        if (remain <= 0) break;
+                        if (is.keys && is.keys.indexOf(k) !== -1) {
+                            const p = Math.min(CAT_UNIT[k], remain);
+                            is.pts = (is.pts || 0) + p;
+                            remain -= p;
+                        }
+                    }
+                }
+            });
+
+            /* ---------- 洞察 ---------- */
+            const insights = [];
+            // key 用于把洞察与对应扣分项关联起来（ins.ded = 该项扣分）
+            const push = (level, text, detail, key) =>
+                insights.push({ level, text, detail, ded: key && dedMap[key] ? dedMap[key] : 0 });
+
+            if (s.internal === 0) push('error', t().insNoIntT, t().insNoIntD, 'noInt');
+            else if (s.internal < 3) push('warning', t().insFewIntT, fmt(t().insFewIntD, { n: s.internal }), 'fewInt');
+            else push('pass', t().insOkIntT, fmt(t().insOkIntD, { n: s.internal }));
+
+            if (s.external === 0) push('info', t().insNoExtT, t().insNoExtD);
+
+            if (s.no_anchor > 0) push('warning', t().insEmptyAnchorT, fmt(t().insEmptyAnchorD, { n: s.no_anchor }), 'noAnchor');
+            if (nofollowInt > 0) push('warning', t().insNofollowIntT, fmt(t().insNofollowIntD, { n: nofollowInt }), 'nofollowInt');
+            if (s.empty > 0) push('error', t().insEmptyT, fmt(t().insEmptyD, { n: s.empty }), 'empty');
+            if (s.javascript > 0) push('warning', t().insJsT, fmt(t().insJsD, { n: s.javascript }), 'js');
+            if (s.mixed_http > 0) push('warning', t().insMixedT, fmt(t().insMixedD, { n: s.mixed_http }), 'mixed');
+            if (s.img_no_alt > 0) push('warning', t().insImgAltT, fmt(t().insImgAltD, { n: s.img_no_alt }), 'imgAlt');
+            if (s.path_relative > 0) push('info', t().insPathRelT, fmt(t().insPathRelD, { n: s.path_relative }));
+            if (s.blank_noopener > 0) push('warning', t().insBlankT, fmt(t().insBlankD, { n: s.blank_noopener }));
+            if (s.dup_urls > 0) push('info', t().insDupT, fmt(t().insDupD, { n: s.dup_urls }));
+            if (!insights.some(i => i.level === 'error' || i.level === 'warning')) {
+                push('pass', t().insOkT, t().insOkD);
+            }
+
+            return {
+                url: (baseSource === 'input' || baseSource === 'canonical') && base ? base.href : '',
+                base_source: baseSource, stats: s, links, score, insights,
+                deductions: dedList,
+                external_domains: externalDomains, anchor_texts: anchorTexts, checkable_urls: checkableUrls
+            };
+        }
+
+        /* ========== 输入与抓取 ========== */
+        async function doAnalyze() {
+            const errBox = $('errorBox');
+            errBox.classList.add('hidden');
+            const btns = [$('btnAnalyzeHtml'), $('btnAnalyzeUrl')];
+            btns.forEach(b => { b.disabled = true; b.innerHTML = '<span class="spin"></span>' + t().analyzing; });
+            linkStatuses = {};
+
+            try {
+                let html = '', base = '';
+                if (mode === 'html') {
+                    html = $('htmlInput').value.trim();
+                    if (!html) throw new Error(t().errHtml);
+                    const b = $('baseInput').value.trim();
+                    if (b) {
+                        base = normalizeUrl(b);
+                        if (!base) throw new Error(t().errBase + b);
+                    }
+                } else {
+                    const raw = $('urlInput').value.trim();
+                    if (!raw) throw new Error(t().errUrl);
+                    base = normalizeUrl(raw);
+                    if (!base) throw new Error(t().errBase + raw);
+                    html = await fetchPage(base);
+                }
+
+                const r = analyzeHTML(html, base);
+                if (!r.links.length) throw new Error(t().errParse);
+                result = r;
+                viewTab = 'all';
+                render();
+                scrollToEl($('results'));
+            } catch (e) {
+                showErr(e.message || String(e));
+            } finally {
+                btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i><span>' + t().btnAnalyze + '</span>'; });
+            }
+        }
+
+        // 抓取页面：先直接请求，失败后再走公共 CORS 代理
+        async function fetchPage(url) {
+            try {
+                const r = await fetch(url, { redirect: 'follow' });
+                if (r.ok) return await r.text();
+                // 4xx/5xx 视为抓取失败，尝试代理（代理可能绕过部分限制）
+            } catch (e) { /* 直连失败（多为 CORS），转代理 */ }
+            try {
+                const r = await fetch(STATUS_PROXY + encodeURIComponent(url), { redirect: 'follow' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return await r.text();
+            } catch (e) {
+                throw new Error(t().errFetch);
+            }
+        }
+
+        // 注意：不要命名为 scrollTo，会覆盖原生 window.scrollTo 造成自递归
+        function scrollToEl(el) {
+            const top = el.getBoundingClientRect().top + window.pageYOffset - 80;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+
+        /* ========== 渲染 ========== */
+        function scoreColor(v) { return v >= 80 ? '#16a34a' : v >= 60 ? '#2563eb' : v >= 40 ? '#f59e0b' : '#ef4444'; }
+        function scoreColor2(v) { return v >= 80 ? '#4ade80' : v >= 60 ? '#60a5fa' : v >= 40 ? '#fbbf24' : '#f87171'; }
+        function scoreLabel(v) { return v >= 90 ? t().qExcellent : v >= 70 ? t().qGood : v >= 50 ? t().qFair : t().qPoor; }
+
+        function scoreRing(v) {
+            const c1 = scoreColor(v), c2 = scoreColor2(v);
+            const r = 42, circ = 2 * Math.PI * r, dl = circ * Math.min(v / 100, 1);
+            return '<div class="relative w-[100px] h-[100px] shrink-0">' +
+                '<svg width="100" height="100" class="-rotate-90" style="filter:drop-shadow(0 3px 8px ' + c1 + '55)">' +
+                '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="currentColor" class="text-slate-200 dark:text-slate-800" stroke-width="9"/>' +
+                '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="url(#scoreGrad)" stroke-width="9" stroke-linecap="round"' +
+                ' stroke-dasharray="' + dl + ' ' + (circ - dl) + '" style="transition:stroke-dasharray .6s ease"/>' +
+                '<defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="' + c1 + '"/><stop offset="100%" stop-color="' + c2 + '"/>' +
+                '</linearGradient></defs>' +
+                '</svg>' +
+                '<span class="absolute inset-0 flex items-center justify-center text-2xl font-black mono" style="color:' + c1 + ';text-shadow:0 0 16px ' + c1 + '66">' + v + '</span>' +
+                '</div>';
+        }
+
+        function statCard(label, value, color) {
+            return '<div class="stat-card" style="--sc:' + color + '">' +
+                '<div class="text-xl font-black mono stat-val">' + value + '</div>' +
+                '<div class="text-[10px] font-semibold stat-lbl">' + label + '</div></div>';
+        }
+
+        function typeBadge(l) {
+            const map = {
+                internal: ['b-int', t().tInternal], external: ['b-ext', t().tExternal],
+                anchor: ['b-mut', t().tAnchor], mailto: ['b-mut', t().tMailto], tel: ['b-mut', t().tTel],
+                javascript: ['b-js', t().tJs], empty: ['b-nf', t().tEmpty], data: ['b-mut', t().tData],
+                other: ['b-mut', t().tOther]
+            };
+            const m = map[l.type] || map.other;
+            return '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
+        }
+
+        function hrefBadge(ht) {
+            const map = {
+                absolute: ['b-abs', t().hAbsolute], root_relative: ['b-root', t().hRoot],
+                path_relative: ['b-path', t().hPath], protocol_relative: ['b-proto', t().hProto]
+            };
+            const m = map[ht];
+            return m ? '<span class="badge ' + m[0] + '">' + m[1] + '</span>' : '';
+        }
+
+        function statusHtml(url) {
+            if (!url || !/^https?:\/\/[^/]+/i.test(url)) return '<span class="status-badge st-pending">' + t().stNone + '</span>';
+            const st = linkStatuses[url];
+            if (!st) return '<span class="status-badge st-pending">' + (isChecking ? '⏳' : t().stNone) + '</span>';
+            const c = st.code;
+            if (c >= 200 && c < 300) return '<span class="status-badge st-ok">' + c + '</span>';
+            if (c >= 300 && c < 400) return '<span class="status-badge st-redirect">' + c + '→</span>';
+            return '<span class="status-badge st-err">' + (c > 0 ? c : '✕') + '</span>';
+        }
+
+        function vtab(key, label) {
+            return '<button class="btn-ghost' + (viewTab === key ? ' active' : '') + '" onclick="setView(\'' + key + '\')">' + label + '</button>';
+        }
+
+        function renderLinkTable() {
+            let links = result.links;
+            if (viewTab === 'internal') links = links.filter(l => l.type === 'internal');
+            else if (viewTab === 'external') links = links.filter(l => l.type === 'external');
+            else if (viewTab === 'absolute') links = links.filter(l => l.hrefType === 'absolute' && (l.type === 'internal' || l.type === 'external'));
+            else if (viewTab === 'relative') links = links.filter(l => ['root_relative', 'path_relative', 'protocol_relative'].includes(l.hrefType));
+            else if (viewTab === 'issues') links = links.filter(l => l.issues.some(is => is.pts > 0));
+
+            if (!links.length) return '<div class="text-center text-slate-400 py-10 text-sm">' + t().noMatch + '</div>';
+
+            let h = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">' +
+                '<div class="lt-head"><span>' + t().thIndex + '</span><span>' + t().thUrl + '</span>' +
+                '<span class="col-anchor">' + t().thAnchor + '</span><span>' + t().thType + '</span><span>' + t().thStatus + '</span></div>' +
+                '<div class="max-h-[520px] overflow-y-auto">';
+
+            links.slice(0, 300).forEach((l, i) => {
+                const display = l.resolved || l.href || '—';
+                const showShort = display.length > 110 ? display.slice(0, 110) + '…' : display;
+                h += '<div class="lt-row">';
+                h += '<span class="mono text-[10px] font-bold text-slate-400 pt-0.5">' + (i + 1) + '</span>';
+
+                h += '<div class="min-w-0"><div class="mono text-[11.5px] break-all leading-snug text-sky-700 dark:text-sky-400">' + esc(showShort) + '</div>';
+                if (l.resolved && l.resolved !== l.href && l.href) {
+                    h += '<div class="text-[10px] text-slate-400 mt-0.5 break-all">' + t().rawHref + ': <span class="mono">' + esc(l.href) + '</span></div>';
+                }
+                h += '<div class="flex flex-wrap gap-1 mt-1">';
+                h += typeBadge(l) + hrefBadge(l.hrefType);
+                if (l.nofollow) h += '<span class="badge b-nf">nofollow</span>';
+                if (l.sponsored) h += '<span class="badge b-sp">sponsored</span>';
+                if (l.ugc) h += '<span class="badge b-ugc">ugc</span>';
+                if (l.target === '_blank') h += '<span class="badge b-mut">_blank</span>';
+                if (l.hasImage) h += '<span class="badge b-img">img</span>';
+                if (l.isDuplicate) h += '<span class="badge b-mut">dup</span>';
+                h += '</div>';
+                if (l.issues.length) {
+                    h += '<div class="mt-1 space-y-0.5">';
+                    l.issues.forEach(is => {
+                        const color = is.level === 'error' ? 'text-red-600 dark:text-red-400'
+                            : is.level === 'warning' ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-slate-400 dark:text-slate-500';
+                        const mark = is.level === 'error' ? '✕' : is.level === 'warning' ? '⚠' : 'ℹ';
+                        h += '<div class="text-[10.5px] leading-snug ' + color + '">' + mark + ' ' + esc(is.msg) +
+                            (is.pts ? ' <span class="ded-chip">-' + is.pts + '</span>' : '') + '</div>';
+                    });
+                    h += '</div>';
+                }
+                h += '</div>';
+
+                // 锚文本列
+                let anchorHtml;
+                if (l.anchor) anchorHtml = esc(l.anchor.length > 60 ? l.anchor.slice(0, 60) + '…' : l.anchor);
+                else if (l.hasImage) anchorHtml = '<span class="text-teal-600 dark:text-teal-400">[img' + (l.imgAlt ? ' alt="' + esc(l.imgAlt.slice(0, 30)) + '"' : '') + ']</span>';
+                else anchorHtml = '<span class="text-slate-300 dark:text-slate-600">' + t().noAnchorTxt + '</span>';
+                h += '<div class="col-anchor text-[11.5px] text-slate-500 dark:text-slate-400 break-words leading-snug">' + anchorHtml + '</div>';
+
+                h += '<div>' + typeBadge(l) + '</div>';
+                h += '<div>' + statusHtml(l.resolved) + '</div>';
+                h += '</div>';
+            });
+
+            h += '</div></div>';
+            if (links.length > 300) {
+                h += '<div class="text-xs text-slate-400 mt-2 text-right">300 / ' + links.length + '</div>';
+            }
+            return h;
+        }
+
+        function renderDomains() {
+            const doms = result.external_domains;
+            const keys = Object.keys(doms);
+            if (!keys.length) return '<div class="text-center text-slate-400 py-10 text-sm">' + t().domNone + '</div>';
+            const mx = Math.max.apply(null, keys.map(k => doms[k]));
+            let h = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">' +
+                '<div class="panel-head ph-blue px-4 py-3 text-sm font-bold">' +
+                '🌐 ' + t().domTitle + ' (' + keys.length + ')</div><div class="max-h-[420px] overflow-y-auto">';
+            keys.forEach(k => {
+                const pct = mx > 0 ? (doms[k] / mx * 100) : 0;
+                h += '<div class="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">' +
+                    '<span class="mono text-xs font-semibold text-sky-700 dark:text-sky-400 w-48 sm:w-60 truncate" title="' + esc(k) + '">' + esc(k) + '</span>' +
+                    '<div class="dist-bar"><div class="dist-fill f-blue" style="width:' + pct + '%"></div></div>' +
+                    '<span class="mono text-xs font-bold w-8 text-right">' + doms[k] + '</span></div>';
+            });
+            return h + '</div></div>';
+        }
+
+        function renderAnchors() {
+            const anchors = result.anchor_texts;
+            if (!anchors.length) return '<div class="text-center text-slate-400 py-10 text-sm">' + t().anchorNone + '</div>';
+            const mx = anchors[0].count;
+            let h = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">' +
+                '<div class="panel-head ph-pink px-4 py-3 text-sm font-bold">' +
+                '📝 ' + t().anchorTitle + ' (' + anchors.length + ' ' + t().anchorCount + ')</div><div class="max-h-[420px] overflow-y-auto">';
+            anchors.forEach(a => {
+                const pct = mx > 0 ? (a.count / mx * 100) : 0;
+                const text = a.text.length > 60 ? a.text.slice(0, 60) + '…' : a.text;
+                h += '<div class="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">' +
+                    '<span class="text-xs font-semibold w-48 sm:w-60 truncate" title="' + esc(a.text) + '">' + esc(text) + '</span>' +
+                    '<div class="dist-bar"><div class="dist-fill" style="width:' + pct + '%"></div></div>' +
+                    '<span class="mono text-xs font-bold w-7 text-right">' + a.count + '</span>' +
+                    '<span class="text-[10px] text-slate-400 w-16 text-right">' + t().anchorIn + a.internal + ' ' + t().anchorOut + a.external + '</span></div>';
+            });
+            return h + '</div></div>';
+        }
+
+        function render() {
+            if (!result) return;
+            const el = $('results');
+            el.classList.remove('hidden');
+            const d = result, s = d.stats;
+            let h = '<div class="space-y-6 fade-in">';
+
+            if (d.url) {
+                h += '<div class="text-xs text-slate-400 -mt-2 break-all">🔗 <span class="mono font-semibold url-pill">' + esc(d.url) + '</span></div>';
+            }
+
+            // 评分 + 统计卡
+            const dedTotal = (d.deductions || []).reduce((a, x) => a + x.points, 0);
+            h += '<div class="flex flex-wrap gap-4 items-stretch">';
+            h += '<div class="score-card rounded-2xl p-5 flex flex-col items-center justify-center gap-1 shrink-0" style="--sc:' + scoreColor(d.score) + '">' +
+                scoreRing(d.score) +
+                '<div class="text-xs font-extrabold" style="color:' + scoreColor(d.score) + '">' + scoreLabel(d.score) + '</div>' +
+                '<div class="text-[10px] text-slate-400">' + t().scoreLabel + ' <span class="mono">' + t().dedOf100 + '</span></div>' +
+                '</div>';
+            h += '<div class="flex-1 grid grid-cols-3 sm:grid-cols-5 gap-2 content-start">';
+            h += statCard(t().scTotal, s.total, '#0f172a');
+            h += statCard(t().scInternal, s.internal, '#16a34a');
+            h += statCard(t().scExternal, s.external, '#2563eb');
+            h += statCard(t().scAbsolute, s.absolute, '#2563eb');
+            h += statCard(t().scRelative, s.relative_total, '#16a34a');
+            h += statCard(t().scNofollow, s.nofollow, '#7c3aed');
+            h += statCard(t().scNoAnchor, s.no_anchor, '#f59e0b');
+            h += statCard(t().scDup, s.dup_urls, '#64748b');
+            h += statCard(t().scImage, s.image_links, '#0d9488');
+            h += '</div></div>';
+
+            // 扣分明细
+            h += '<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">';
+            h += '<div class="panel-head ph-ded px-4 py-2.5 text-sm font-bold">🔻 ' + t().dedTitle +
+                (dedTotal > 0 ? ' <span class="mono text-xs font-extrabold opacity-90">' + fmt(t().dedUnit, { n: dedTotal }) + '</span>' : '') +
+                '</div>';
+            if (dedTotal > 0) {
+                d.deductions.forEach(dd => {
+                    h += '<div class="ded-row"><span class="ded-label">' + esc(dd.label) + '</span>' +
+                        '<span class="ded-pill">-' + dd.points + '</span></div>';
+                });
+            } else {
+                h += '<div class="ins-row r-pass"><div class="ins-dot ins-pass">✓</div>' +
+                    '<div><div class="text-[13px] font-semibold">' + t().dedNone + '</div>' +
+                    '<div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + t().dedNoneDetail + '</div></div></div>';
+            }
+            h += '</div>';
+
+            // 洞察（带扣分标注）
+            h += '<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">';
+            d.insights.forEach(ins => {
+                const cls = ins.level === 'pass' ? 'ins-pass' : ins.level === 'warning' ? 'ins-warn' : ins.level === 'error' ? 'ins-err' : 'ins-info';
+                const rcls = ins.level === 'pass' ? 'r-pass' : ins.level === 'warning' ? 'r-warn' : ins.level === 'error' ? 'r-err' : 'r-info';
+                const mark = ins.level === 'pass' ? '✓' : ins.level === 'warning' ? '!' : ins.level === 'error' ? '✕' : 'ℹ';
+                h += '<div class="ins-row ' + rcls + '"><div class="ins-dot ' + cls + '">' + mark + '</div>' +
+                    '<div class="flex-1"><div class="flex items-start gap-2 flex-wrap">' +
+                    '<span class="text-[13px] font-semibold">' + esc(ins.text) + '</span>' +
+                    (ins.ded ? '<span class="ded-chip">-' + ins.ded + '</span>' : '') + '</div>' +
+                    '<div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">' + esc(ins.detail) + '</div></div></div>';
+            });
+            h += '</div>';
+
+            // 视图切换
+            h += '<div class="flex flex-wrap items-center justify-between gap-3">';
+            h += '<div class="flex flex-wrap gap-2">';
+            h += vtab('all', t().vAll + ' ' + s.total);
+            h += vtab('internal', t().vInternal + ' ' + s.internal);
+            h += vtab('external', t().vExternal + ' ' + s.external);
+            h += vtab('absolute', t().vAbsolute + ' ' + s.absolute);
+            h += vtab('relative', t().vRelative + ' ' + s.relative_total);
+            const dedLinks = result.links.filter(l => l.issues.some(is => is.pts > 0)).length;
+            h += vtab('issues', '⚠ ' + t().vIssues + ' ' + dedLinks);
+            h += vtab('domains', t().vDomains);
+            h += vtab('anchors', t().vAnchors);
+            h += '</div>';
+            if (d.checkable_urls.length) {
+                h += '<button class="btn-ghost" id="btnStatus" onclick="checkStatuses()"' + (isChecking ? ' disabled' : '') + '>' +
+                    '<i class="fa-solid fa-heart-pulse"></i> ' + t().checkStatus + ' (' + d.checkable_urls.length + ')' +
+                    (isChecking ? ' …' : '') + '</button>';
+            }
+            h += '</div>';
+
+            // 主视图
+            if (viewTab === 'domains') h += renderDomains();
+            else if (viewTab === 'anchors') h += renderAnchors();
+            else h += renderLinkTable();
+
+            h += '<div class="tip-bar rounded-xl px-4 py-3 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">' +
+                '💡 <b class="font-extrabold">SEO</b> ' + t().tip + '</div>';
+
+            h += '</div>';
+            el.innerHTML = h;
+        }
+
+        function setView(v) { viewTab = v; render(); }
+
+        /* ========== 状态批量检测 ========== */
+        async function probeStatus(url) {
+            // 先尝试直连（部分站点允许 CORS）
+            try {
+                const r = await fetch(url, { method: 'HEAD', mode: 'cors', redirect: 'follow' });
+                if (r.status) return r.status;
+            } catch (e) { /* 忽略，走代理 */ }
+            // 再经公共代理
+            try {
+                const r = await fetch(STATUS_PROXY + encodeURIComponent(url), { method: 'HEAD', redirect: 'follow' });
+                if (r.status) return r.status;
+            } catch (e) { }
+            return 0;
+        }
+
+        async function checkStatuses() {
+            if (isChecking || !result || !result.checkable_urls.length) return;
+            isChecking = true;
+            render();
+            const urls = result.checkable_urls;
+            const BATCH = 5;
+            for (let i = 0; i < urls.length; i += BATCH) {
+                const batch = urls.slice(i, i + BATCH);
+                await Promise.all(batch.map(async u => {
+                    linkStatuses[u] = { code: await probeStatus(u) };
+                }));
+                render();
+            }
+            isChecking = false;
+            render();
+        }
+
+        /* ========== 初始化 ========== */
+        applyI18n();
+        // 语言/主题参数处理后，允许 ?mode=html 显式切到源码模式（默认为网址模式）
+        if (new URLSearchParams(location.search).get('mode') === 'html') switchMode('html');
+    </script>
+</body>
+</html>
