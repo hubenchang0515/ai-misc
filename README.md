@@ -2,6 +2,7 @@
 
 AI 生成的一些乱七八糟的应用
 
+* [网页锚文本分析器](https://hubenchang0515.github.io/ai-misc/anchor-analyzer)
 * [四则运算限时训练](https://hubenchang0515.github.io/ai-misc/arithmetic)
 * [base32/base64 编解码](https://hubenchang0515.github.io/ai-misc/base32-64)
 * [预算表](https://hubenchang0515.github.io/ai-misc/budget)

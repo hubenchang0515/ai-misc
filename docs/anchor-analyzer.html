@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="canonical" href="https://misc.xplanc.org/anchor-analyzer"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="网页锚文本分析器：输入网址或粘贴 HTML 源码，把页面所有链接的锚文本智能分类为品牌词、精确匹配、部分匹配、通用词、裸 URL、图片链接，统计分布比例、内外链与 dofollow/nofollow，给出自然度评分与 Penguin 风险提示。">
+    <title>网页锚文本分析器</title>
+    <script src="vendor/tailwindcss/cdn-3.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        // 主题默认：URL 参数 ?theme= 优先，否则跟随系统（无手动切换按钮）
+        (function () {
+            const p = new URLSearchParams(location.search).get('theme');
+            if (p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="vendor/font-awesome/7.0.1/css/all.min.css">
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+               background-image: radial-gradient(1100px 480px at 8% -12%, rgba(99,102,241,.16), transparent 62%),
+                                 radial-gradient(900px 420px at 94% -6%, rgba(6,182,212,.14), transparent 58%);
+               background-attachment: fixed; }
+        html.dark body { background-image: radial-gradient(1100px 480px at 8% -12%, rgba(99,102,241,.22), transparent 62%),
+                                radial-gradient(900px 420px at 94% -6%, rgba(6,182,212,.16), transparent 58%); }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+        /* 渐变大标题（整行同一渐变，含中英模式的强调片段） */
+        .grad-title { background: linear-gradient(95deg, #4f46e5 0%, #9333ea 45%, #06b6d4 100%);
+                      -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+        .field { width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 12px; font-size: 13px; outline: none; background: #fff; }
+        .field:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,.2); }
+        .dark .field { background: #0f172a; border-color: #1e293b; color: #e2e8f0; }
+
+        textarea.field { resize: vertical; min-height: 220px; line-height: 1.6; font-size: 12.5px; }
+        .hint { display: block; font-size: 10.5px; color: #94a3b8; margin-top: 4px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px;
+               background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 55%, #0891b2 100%);
+               color: #fff; border: 0; border-radius: 10px;
+               padding: 10px 22px; font-size: 14px; font-weight: 700; cursor: pointer;
+               box-shadow: 0 6px 18px rgba(124,58,237,.38);
+               transition: transform .15s, box-shadow .15s, filter .15s; }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 8px 22px rgba(124,58,246,.45); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-ghost { background: transparent; color: #475569; border: 1px solid #e2e8f0; padding: 5px 13px; font-size: 12px; font-weight: 600; border-radius: 8px; transition: all .15s; }
+        .btn-ghost:hover { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }
+        .btn-ghost.active { background: linear-gradient(135deg, #6366f1, #a855f7); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,.35); }
+        .dark .btn-ghost { color: #94a3b8; border-color: #1e293b; }
+        .dark .btn-ghost:hover { background: rgba(99,102,241,.15); border-color: #4f46e5; color: #a5b4fc; }
+        .dark .btn-ghost.active { background: linear-gradient(135deg, #6366f1, #a855f7); border-color: transparent; color: #fff; }
+
+        .tab { border: 1.5px solid #e2e8f0; background: #fff; color: #475569; border-radius: 10px; padding: 8px 16px;
+               font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s; }
+        .tab:hover { border-color: #c4b5fd; color: #7c3aed; }
+        .tab.active { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%); border-color: transparent; color: #fff;
+                      box-shadow: 0 5px 16px rgba(124,58,237,.4); }
+        .dark .tab { background: #0f172a; border-color: #1e293b; color: #94a3b8; }
+        .dark .tab:hover { border-color: #4f46e5; color: #a5b4fc; }
+        .dark .tab.active { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%); border-color: transparent; color: #fff; }
+
+        /* 示例按钮 */
+        .ex-btn { border: 1px dashed #c7d2fe; background: rgba(238,242,255,.5); color: #4f46e5; border-radius: 9px;
+                  padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; }
+        .ex-btn:hover { background: #e0e7ff; border-color: #818cf8; }
+        .dark .ex-btn { background: rgba(99,102,241,.1); border-color: #3730a3; color: #a5b4fc; }
+        .dark .ex-btn:hover { background: rgba(99,102,241,.2); border-color: #6366f1; }
+
+        .badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 5px; white-space: nowrap; line-height: 1.6; letter-spacing: .2px; }
+        .b-nf  { background: #dc2626; color: #fff; }
+        .b-sp  { background: #d97706; color: #fff; }
+        .b-ugc { background: #7c3aed; color: #fff; }
+        .b-mut { background: #e2e8f0; color: #475569; }
+        .dark .b-mut { background: #334155; color: #cbd5e1; }
+        /* 锚文本类型配色（与分布条一致） */
+        .b-brand { background: #2e6da4; color: #fff; }
+        .b-exact { background: #c0392b; color: #fff; }
+        .b-partial { background: #c07b1e; color: #fff; }
+        .b-generic { background: #6e4db8; color: #fff; }
+        .b-naked { background: #1f7e7e; color: #fff; }
+        .b-image { background: #9e978f; color: #fff; }
+        .b-other { background: #2d7a4f; color: #fff; }
+
+        /* 分布条（多段） */
+        .dist-segbar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: #e2e8f0; }
+        .dark .dist-segbar { background: #1e293b; }
+        .dist-seg { height: 100%; display: flex; align-items: center; justify-content: center; color: #fff;
+                    font-size: 10px; font-weight: 800; transition: width .45s ease; overflow: hidden; white-space: nowrap; }
+        .dist-bar { flex: 1; height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+        .dark .dist-bar { background: #1e293b; }
+        .dist-fill { height: 100%; border-radius: 4px; background-image: linear-gradient(90deg, #6366f1, #a855f7, #06b6d4); }
+
+        .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+        /* 统计卡：顶部色条 + 大号彩色数字 */
+        .stat-card { position: relative; overflow: hidden; text-align: center; padding: 12px 8px 10px;
+                     border-radius: 14px; border: 1px solid rgba(148,163,184,.28);
+                     background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 9%, #fff), #fff 70%); }
+        .stat-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+                             background: linear-gradient(90deg, var(--sc), color-mix(in srgb, var(--sc) 45%, #fff)); }
+        .stat-card .stat-val { color: var(--sc); text-shadow: 0 0 14px color-mix(in srgb, var(--sc) 35%, transparent); }
+        .stat-card .stat-lbl { color: #64748b; }
+        .dark .stat-card { border-color: rgba(148,163,184,.2);
+                           background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 20%, #0f172a), #0f172a 75%); }
+        .dark .stat-card .stat-lbl { color: #94a3b8; }
+
+        /* 评分卡：随分数着色的渐变底 */
+        .score-card { border: 1px solid color-mix(in srgb, var(--sc, #6366f1) 35%, transparent);
+                      background: linear-gradient(165deg, color-mix(in srgb, var(--sc, #6366f1) 14%, #fff), #fff 72%); }
+        .dark .score-card { border-color: color-mix(in srgb, var(--sc, #6366f1) 45%, transparent);
+                            background: linear-gradient(165deg, color-mix(in srgb, var(--sc, #6366f1) 26%, #0f172a), #0f172a 78%); }
+
+        /* 底部建议条：彩色渐变 */
+        .tip-bar { background: linear-gradient(90deg, rgba(99,102,241,.14), rgba(168,85,247,.14) 50%, rgba(6,182,212,.14));
+                   border: 1px solid rgba(139,92,246,.4); }
+        .tip-bar b { color: #6d28d9; }
+        .dark .tip-bar b { color: #c4b5fd; }
+
+        /* 分布面板标题条 */
+        .panel-head { color: #fff; }
+        .panel-head.ph-blue { background: linear-gradient(90deg, #0284c7, #2563eb); }
+        .panel-head.ph-pink { background: linear-gradient(90deg, #9333ea, #0891b2); }
+        .panel-head.ph-ded { background: linear-gradient(90deg, #e11d48, #f59e0b); }
+
+        /* 扣分明细 */
+        .ded-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                   padding: 8px 16px; border-bottom: 1px solid rgba(226,228,235,.6); font-size: 13px; }
+        .ded-row:last-child { border-bottom: 0; }
+        .ded-row:nth-child(even) { background: rgba(244,63,94,.045); }
+        .dark .ded-row:nth-child(even) { background: rgba(244,63,94,.08); }
+        .ded-label { color: #334155; font-weight: 600; }
+        .dark .ded-label { color: #cbd5e1; }
+        .ded-pill { flex-shrink: 0; min-width: 40px; text-align: center;
+                    background: linear-gradient(135deg, #e11d48, #f43f5e); color: #fff;
+                    font-weight: 800; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+                    box-shadow: 0 2px 8px rgba(225,29,72,.35); }
+        /* 小号扣分徽标 */
+        .ded-chip { display: inline-block; background: linear-gradient(135deg, #e11d48, #f43f5e); color: #fff;
+                    font-size: 10px; font-weight: 800; padding: 0 6px; border-radius: 5px;
+                    line-height: 1.5; vertical-align: 1px; letter-spacing: .2px; }
+
+        .ins-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; border-bottom: 1px solid rgba(226,228,235,.6); border-left: 4px solid transparent; }
+        .ins-row:last-child { border-bottom: 0; }
+        .ins-dot { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+        .ins-pass { background: #16a34a; color: #fff; }
+        .ins-warn { background: #f59e0b; color: #fff; }
+        .ins-err { background: #dc2626; color: #fff; }
+        .ins-info { background: #6366f1; color: #fff; }
+        .ins-row.r-pass { border-left-color: #16a34a; background: rgba(22,163,74,.05); }
+        .ins-row.r-warn { border-left-color: #f59e0b; background: rgba(245,158,11,.06); }
+        .ins-row.r-err { border-left-color: #dc2626; background: rgba(220,38,38,.05); }
+        .ins-row.r-info { border-left-color: #6366f1; background: rgba(99,102,241,.045); }
+        .dark .ins-row.r-pass { background: rgba(22,163,74,.08); }
+        .dark .ins-row.r-warn { background: rgba(245,158,11,.08); }
+        .dark .ins-row.r-err { background: rgba(220,38,38,.08); }
+        .dark .ins-row.r-info { background: rgba(99,102,241,.1); }
+
+        /* 链接表：多列网格 */
+        .at-row { display: grid; grid-template-columns: 30px minmax(0,1.1fr) 92px minmax(0,1.5fr) 52px 92px; gap: 8px;
+                  padding: 8px 14px; border-bottom: 1px solid rgba(226,228,235,.6); font-size: 12px; align-items: start; }
+        .at-row:nth-child(even) { background: rgba(99,102,241,.035); }
+        .at-row:hover { background: rgba(168,85,247,.1); }
+        .dark .at-row:nth-child(even) { background: rgba(99,102,241,.07); }
+        .dark .at-row:hover { background: rgba(168,85,247,.14); }
+        .at-head { display: grid; grid-template-columns: 30px minmax(0,1.1fr) 92px minmax(0,1.5fr) 52px 92px; gap: 8px;
+                   padding: 9px 14px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+                   color: #fff; background: linear-gradient(90deg, #4f46e5, #9333ea 60%, #0891b2); }
+        .dark .at-row { border-color: rgba(30,41,59,.6); }
+        @media (max-width: 700px) {
+            .at-row, .at-head { grid-template-columns: 24px minmax(0,1fr) 84px 50px; }
+            .at-row > .col-url, .at-head > .col-url, .at-row > .col-rel, .at-head > .col-rel { display: none; }
+        }
+
+        /* 说明标题小竖条 & 结果页网址 */
+        .guide-accent { background: linear-gradient(180deg, #6366f1, #06b6d4); }
+        .url-pill { color: #7c3aed; }
+        .dark .url-pill { color: #c4b5fd; }
+
+        .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: all .25s ease; z-index: 60; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4);
+                border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen py-8 px-4 transition-colors duration-300">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6">
+            <h1 class="grad-title text-3xl sm:text-4xl font-black tracking-tight"><span data-i18n="h1Main">网页锚文本分析器</span><span data-i18n="h1Accent"></span></h1>
+            <p id="t-subtitle" data-i18n="subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                锚文本分类 · 分布比例 · 内外链分离 · dofollow/nofollow · 自然度评分（纯前端分析）
+            </p>
+        </header>
+
+        <!-- ============ 输入区 ============ -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm mb-6">
+            <div class="flex gap-2 mb-4 flex-wrap">
+                <button id="tabUrl" class="tab active" onclick="switchMode('url')">
+                    <i class="fa-solid fa-link mr-1"></i><span data-i18n="tabUrl">输入网址</span>
+                </button>
+                <button id="tabHtml" class="tab" onclick="switchMode('html')">
+                    <i class="fa-solid fa-code mr-1"></i><span data-i18n="tabHtml">粘贴 HTML 源码</span>
+                </button>
+            </div>
+
+            <!-- 快速示例 -->
+            <div class="mb-4">
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1"></i><span data-i18n="exLabel">快速加载示例</span>
+                    <span class="font-normal text-slate-400 dark:text-slate-500" data-i18n="exHint">— 10 种不同锚文本分布场景（英文示例）</span>
+                </div>
+                <div id="exampleBar" class="grid gap-1.5" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))"></div>
+            </div>
+
+            <div id="inputUrl" class="space-y-3">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="urlInput" type="text" class="field mono flex-1" data-i18n-ph="phUrl"
+                        placeholder="输入要分析的页面网址，如 xplanc.org 或 https://xplanc.org/page"
+                        onkeydown="if(event.key==='Enter')doAnalyze()">
+                    <button id="btnAnalyzeUrl" class="btn" onclick="doAnalyze()">
+                        <i class="fa-solid fa-anchor"></i><span data-i18n="btnAnalyze">分析锚文本</span>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 dark:text-slate-500" data-i18n="urlHint">
+                    部分站点有防爬保护，可能抓取失败；失败时请改用「粘贴 HTML 源码」。
+                </p>
+            </div>
+
+            <div id="inputHtml" class="hidden space-y-3">
+                <textarea id="htmlInput" class="field mono" data-i18n-ph="phHtml"
+                    placeholder="在此粘贴包含所有 <a> 标签的 HTML 源码（浏览器中右键 → 查看网页源代码 → 全选复制）…"></textarea>
+            </div>
+
+            <!-- 分类参数 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 dark:text-slate-300"><span data-i18n="pBrand">品牌词</span> <span class="font-normal text-slate-400" data-i18n="pBrandOpt">（用于分类）</span></label>
+                    <input id="brandInput" type="text" class="field mono mt-1" data-i18n-ph="phBrand" placeholder="如：Primers 编程伙伴">
+                    <span class="hint" data-i18n="pBrandHint">含品牌词的锚文本归为「品牌词」</span>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 dark:text-slate-300"><span data-i18n="pTarget">目标关键词</span> <span class="font-normal text-slate-400" data-i18n="pTargetOpt">（用于匹配检测）</span></label>
+                    <input id="targetInput" type="text" class="field mono mt-1" data-i18n-ph="phTarget" placeholder="如：echo">
+                    <span class="hint" data-i18n="pTargetHint">完全匹配→精确匹配；部分匹配→部分匹配</span>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 dark:text-slate-300"><span data-i18n="pDomain">源域名</span> <span class="font-normal text-slate-400" data-i18n="pDomainOpt">（区分内外链）</span></label>
+                    <input id="domainInput" type="text" class="field mono mt-1" data-i18n-ph="phDomain" placeholder="如：xplanc.org">
+                    <span class="hint" data-i18n="pDomainHint">输入网址抓取时自动填入</span>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button id="btnAnalyzeMain" class="btn" onclick="doAnalyze()">
+                    <i class="fa-solid fa-anchor"></i><span data-i18n="btnAnalyze">分析锚文本</span>
+                </button>
+            </div>
+
+            <div id="errorBox" class="hidden mt-3 text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"></div>
+        </section>
+
+        <!-- ============ 结果区 ============ -->
+        <div id="results" class="hidden space-y-6"></div>
+
+        <!-- ============ 说明 ============ -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm mt-6">
+            <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+                <span class="w-2 h-5 rounded guide-accent"></span><span data-i18n="guideTitle">使用说明</span>
+            </h2>
+            <ul class="text-sm text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed list-disc pl-5">
+                <li data-i18n="g1">输入网址模式：抓取该网址的页面内容并自动识别源域名；有防爬保护的站点可能抓取失败，可改用粘贴源码。</li>
+                <li data-i18n="g2">粘贴源码模式：直接解析页面中的所有 &lt;a&gt; 标签，可手动填写品牌词、目标关键词与源域名以提升分类精度。</li>
+                <li data-i18n="g3">锚文本分类：品牌词、精确匹配、部分匹配、通用词、裸 URL、图片链接 6 种；空锚文本与其他长尾单列统计。</li>
+                <li data-i18n="g4">自然度评分：从 100 分起扣——精确匹配每超过 5% 一个百分点扣 2 分，品牌词低于 20% 扣分，多样性不足扣分，并综合通用词/裸 URL 比例。</li>
+                <li data-i18n="g5">内外链分离：内链可较自由地使用关键词，外链需保持自然多样；建议外链 dofollow/nofollow 混合存在。</li>
+                <li data-i18n="g6">风险等级：80 分以上低风险、50-79 中等风险、50 分以下高风险（精确匹配超过 15% 有较高 Penguin 惩罚风险）。</li>
+            </ul>
+
+            <h3 class="text-sm font-bold mt-5 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-table-list text-indigo-500"></i><span data-i18n="typeTableTitle">6 大锚文本类型与理想分布</span>
+            </h3>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table class="w-full text-xs sm:text-[13px]">
+                    <thead>
+                        <tr class="text-left text-[10px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+                            <th class="px-3 py-2" data-i18n="thType">锚文本类型</th>
+                            <th class="px-3 py-2" data-i18n="thExample">示例</th>
+                            <th class="px-3 py-2" data-i18n="thIdeal">理想占比</th>
+                            <th class="px-3 py-2" data-i18n="thRule">分类规则</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-slate-600 dark:text-slate-300">
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#2e6da4"></span><b data-i18n="tBrand">品牌词</b></td>
+                            <td class="px-3 py-2 mono">Primers 编程伙伴</td>
+                            <td class="px-3 py-2 mono">30-40%</td>
+                            <td class="px-3 py-2" data-i18n="r1">包含品牌词输入框中的品牌名</td>
+                        </tr>
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#c0392b"></span><b data-i18n="tExact">精确匹配</b></td>
+                            <td class="px-3 py-2 mono">echo</td>
+                            <td class="px-3 py-2 mono">&lt;5%</td>
+                            <td class="px-3 py-2" data-i18n="r2">锚文本完全等于目标关键词（风险最高）</td>
+                        </tr>
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#c07b1e"></span><b data-i18n="tPartial">部分匹配</b></td>
+                            <td class="px-3 py-2 mono">best echo tips</td>
+                            <td class="px-3 py-2 mono">15-25%</td>
+                            <td class="px-3 py-2" data-i18n="r3">包含目标关键词但不完全相同</td>
+                        </tr>
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#6e4db8"></span><b data-i18n="tGeneric">通用词</b></td>
+                            <td class="px-3 py-2 mono">click here</td>
+                            <td class="px-3 py-2 mono">10-20%</td>
+                            <td class="px-3 py-2" data-i18n="r4">匹配预定义的通用词列表</td>
+                        </tr>
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#1f7e7e"></span><b data-i18n="tNaked">裸 URL</b></td>
+                            <td class="px-3 py-2 mono">xplanc.org/page</td>
+                            <td class="px-3 py-2 mono">5-15%</td>
+                            <td class="px-3 py-2" data-i18n="r5">锚文本本身是 URL 或域名格式</td>
+                        </tr>
+                        <tr class="border-t border-slate-100 dark:border-slate-800">
+                            <td class="px-3 py-2"><span class="legend-dot" style="background:#9e978f"></span><b data-i18n="tImage">图片链接</b></td>
+                            <td class="px-3 py-2 mono">[img alt]</td>
+                            <td class="px-3 py-2 mono">5-10%</td>
+                            <td class="px-3 py-2" data-i18n="r6">链接内含 &lt;img&gt; 标签（alt 作为锚文本信号）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-3" data-i18n="idealNote">
+                自然外链画像参考：品牌 30-40% + 精确 &lt;5% + 部分 15-25% + 通用 10-20% + 裸 URL 5-15% + 图片/其他 10-20%。
+            </p>
+        </section>
+
+        <footer class="text-center text-xs text-slate-400 dark:text-slate-600 mt-8">
+            <span data-i18n="footer">所有分析均在浏览器本地完成，不会上传任何数据。</span>
+        </footer>
+    </div>
+
+    <div id="toast" class="toast px-4 py-2 rounded-xl bg-slate-800 text-white text-sm shadow-lg"></div>
+
+    <script>
+        /* ========== 国际化 ========== */
+        const i18n = {
+            zh: {
+                pageTitle: '网页锚文本分析器',
+                h1Main: '网页锚文本分析器', h1Accent: '',
+                subtitle: '锚文本分类 · 分布比例 · 内外链分离 · dofollow/nofollow · 自然度评分（纯前端分析）',
+                tabUrl: '输入网址', tabHtml: '粘贴 HTML 源码',
+                phUrl: '输入要分析的页面网址，如 xplanc.org 或 https://xplanc.org/page',
+                phHtml: '在此粘贴包含所有 <a> 标签的 HTML 源码（浏览器中右键 → 查看网页源代码 → 全选复制）…',
+                btnAnalyze: '分析锚文本', analyzing: '分析中…',
+                urlHint: '部分站点有防爬保护，可能抓取失败；失败时请改用「粘贴 HTML 源码」。',
+                exLabel: '快速加载示例', exHint: '— 10 种不同锚文本分布场景（示例）',
+                ex0: '✅ 健康分布', ex1: '⚠️ 精确过多', ex2: '❌ 严重过优化', ex3: '🏷️ 纯品牌词', ex4: '🔗 裸URL为主',
+                ex5: '👆 通用词过多', ex6: '🖼️ 图片链接', ex7: '📰 新闻外链', ex8: '🛒 电商链接', ex9: '💻 技术博客',
+                pBrand: '品牌词', pBrandOpt: '（用于分类）', phBrand: '如：Primers 编程伙伴', pBrandHint: '含品牌词的锚文本归为「品牌词」',
+                pTarget: '目标关键词', pTargetOpt: '（用于匹配检测）', phTarget: '如：echo', pTargetHint: '完全匹配→精确匹配；部分匹配→部分匹配',
+                pDomain: '源域名', pDomainOpt: '（区分内外链）', phDomain: '如：xplanc.org', pDomainHint: '输入网址抓取时自动填入',
+                errHtml: '请先粘贴 HTML 源码。', errUrl: '请输入网址。', errBase: '网址格式不正确：',
+                errFetch: '抓取失败（目标站点可能有防爬保护或拒绝访问）。请改用「粘贴 HTML 源码」模式。',
+                errParse: '未能解析出任何 <a> 链接。',
+                guideTitle: '使用说明',
+                g1: '输入网址模式：抓取该网址的页面内容并自动识别源域名；有防爬保护的站点可能抓取失败，可改用粘贴源码。',
+                g2: '粘贴源码模式：直接解析页面中的所有 <a> 标签，可手动填写品牌词、目标关键词与源域名以提升分类精度。',
+                g3: '锚文本分类：品牌词、精确匹配、部分匹配、通用词、裸 URL、图片链接 6 种；空锚文本与其他长尾单列统计。',
+                g4: '自然度评分：从 100 分起扣——精确匹配每超过 5% 一个百分点扣 2 分，品牌词低于 20% 扣分，多样性不足扣分，并综合通用词/裸 URL 比例。',
+                g5: '内外链分离：内链可较自由地使用关键词，外链需保持自然多样；建议外链 dofollow/nofollow 混合存在。',
+                g6: '风险等级：80 分以上低风险、50-79 中等风险、50 分以下高风险（精确匹配超过 15% 有较高 Penguin 惩罚风险）。',
+                typeTableTitle: '6 大锚文本类型与理想分布',
+                thType: '锚文本类型', thExample: '示例', thIdeal: '理想占比', thRule: '分类规则',
+                tBrand: '品牌词', tExact: '精确匹配', tPartial: '部分匹配', tGeneric: '通用词', tNaked: '裸 URL', tImage: '图片链接', tOther: '其他/长尾', tEmpty: '空锚文本',
+                tMailto: '邮件', tTel: '电话', tJs: 'JS 链接', tData: 'data', tAnchorLink: '锚点',
+                r1: '包含品牌词输入框中的品牌名', r2: '锚文本完全等于目标关键词（风险最高）',
+                r3: '包含目标关键词但不完全相同', r4: '匹配预定义的通用词列表',
+                r5: '锚文本本身是 URL 或域名格式', r6: '链接内含 <img> 标签（alt 作为锚文本信号）',
+                idealNote: '自然外链画像参考：品牌 30-40% + 精确 <5% + 部分 15-25% + 通用 10-20% + 裸 URL 5-15% + 图片/其他 10-20%。',
+                footer: '所有分析均在浏览器本地完成，不会上传任何数据。',
+
+                scoreLabel: '锚文本自然度', dedOf100: '/ 100 分',
+                riskLow: '低风险', riskMid: '中等风险', riskHigh: '高风险',
+                scTotal: '锚文本总数', scInternal: '内链', scExternal: '外链', scDofollow: 'dofollow', scNofollow: 'nofollow',
+                scUnique: '唯一锚文本', scDiversity: '多样性', scImage: '图片链接', scExact: '精确匹配', scEmpty: '空锚文本',
+
+                distTitle: '锚文本类型分布', distIn: '内', distOut: '外', none: '—',
+                dedTitle: '扣分明细', dedNone: '无扣分项', dedNoneDetail: '各评分项均达标，锚文本画像自然。', dedUnit: '−{n} 分',
+
+                vAll: '全部', vInternal: '内链', vExternal: '外链', vAnchors: '高频锚文本', vIssues: '扣分项', noMatch: '没有符合条件的数据',
+                thIndex: '#', thAnchor: '锚文本', thTypeC: '类型', thUrl: '链接 URL', thIo: '内/外', thRel: 'Rel',
+                ioIn: '内', ioOut: '外', relDofollow: 'dofollow',
+                anchorTopTitle: '高频锚文本 TOP 20', anchorCount: '种',
+
+                tip: '优先把精确匹配控制在 5% 以内，并将品牌词提升到 30-40%；外链保持 dofollow/nofollow 混合，锚文本文字尽量多样化。',
+
+                insExactT: '精确匹配锚文本过高',
+                insExactD: '精确匹配占 {pct}%（理想 <5%），共 {n} 条，存在 Google Penguin 过度优化风险，建议用品牌词/长尾词稀释。',
+                insBrandLowT: '品牌词占比偏低',
+                insBrandLowD: '品牌词仅占 {pct}%（建议 30-40%），自然外链画像通常以品牌词为主。',
+                insBrandOkT: '品牌词占比健康', insBrandOkD: '品牌词占 {pct}%，符合自然外链画像。',
+                insPartialLowT: '缺少部分匹配锚文本',
+                insPartialLowD: '未检测到包含目标关键词的部分匹配锚文本，建议补充长尾/部分匹配锚文本以传递主题相关性。',
+                insGenericT: '通用词锚文本偏多',
+                insGenericD: '通用词占 {pct}%（建议 10-20%），如 click here / read more，几乎不传递主题相关性。',
+                insNakedT: '裸 URL 锚文本偏多',
+                insNakedD: '裸 URL 占 {pct}%（建议 5-15%），虽然自然但不传递关键词信号，建议与描述性锚文本搭配。',
+                insDiversityT: '锚文本多样性不足',
+                insDiversityD: '唯一锚文本占比 {pct}%（建议 ≥70%），重复度过高可能触发异常信号。',
+                insDiversityOkT: '锚文本多样性良好', insDiversityOkD: '唯一锚文本占比 {pct}%，分布自然多样。',
+                insNofollowT: '外链全部为 dofollow',
+                insNofollowD: '共 {n} 个外链但没有任何 nofollow，自然外链画像中通常混有 nofollow（社交媒体/论坛/评论）。',
+                insImageAltT: '图片链接缺少 alt',
+                insImageAltD: '共 {n} 个图片链接没有 alt 文本，相当于浪费锚文本信号。',
+                insEmptyT: '存在空锚文本',
+                insEmptyD: '共 {n} 个链接没有可读文字，搜索引擎难以理解其含义。',
+                insOkT: '锚文本画像健康', insOkD: '各类型锚文本分布接近自然画像，Penguin 风险较低。'
+            },
+            en: {
+                pageTitle: 'Anchor Text Analyzer',
+                h1Main: 'ANCHOR TEXT ', h1Accent: 'ANALYZER',
+                subtitle: 'Anchor classification · Distribution · Internal/external · dofollow/nofollow · Naturalness score (100% local)',
+                tabUrl: 'Enter URL', tabHtml: 'Paste HTML source',
+                phUrl: 'Enter a page URL, e.g. xplanc.org or https://xplanc.org/page',
+                phHtml: 'Paste the HTML source with all <a> tags (right-click → View Page Source → Select All → Copy)…',
+                btnAnalyze: 'Analyze anchors', analyzing: 'Analyzing…',
+                urlHint: 'Some sites block automated fetching and may fail; if so, switch to "Paste HTML source".',
+                exLabel: 'Load example', exHint: '— 10 anchor distribution scenarios (samples)',
+                ex0: '✅ Healthy', ex1: '⚠️ Too many exact', ex2: '❌ Over-optimized', ex3: '🏷️ Brand only', ex4: '🔗 Naked URLs',
+                ex5: '👆 Too generic', ex6: '🖼️ Image links', ex7: '📰 News links', ex8: '🛒 E-commerce', ex9: '💻 Tech blog',
+                pBrand: 'Brand name', pBrandOpt: '(for classification)', phBrand: 'e.g. Primers 编程伙伴', pBrandHint: 'Anchors containing the brand are classified as "brand"',
+                pTarget: 'Target keyword', pTargetOpt: '(for matching)', phTarget: 'e.g. echo', pTargetHint: 'Exact → exact match; partial → partial match',
+                pDomain: 'Source domain', pDomainOpt: '(internal/external)', phDomain: 'e.g. xplanc.org', pDomainHint: 'Auto-filled when fetching a URL',
+                errHtml: 'Please paste HTML source first.', errUrl: 'Please enter a URL.', errBase: 'Invalid URL: ',
+                errFetch: 'Fetch failed (the site may block automated requests). Please use "Paste HTML source" instead.',
+                errParse: 'No <a> links could be parsed.',
+                guideTitle: 'How to use',
+                g1: 'URL mode: the page is fetched from that URL and the source domain is detected automatically; some sites block fetching — use paste-source instead.',
+                g2: 'Paste-source mode: parses every <a> tag; fill in brand, target keyword and source domain to improve classification.',
+                g3: 'Anchor types: brand, exact match, partial match, generic, naked URL, image — 6 types; empty and long-tail anchors are counted separately.',
+                g4: 'Naturalness score: starts at 100 — exact match deducts 2 per point above 5%, brand below 20% deducts, low diversity deducts, plus generic/naked ratios.',
+                g5: 'Internal vs external: internal links may use keywords freely, external links must stay natural and diverse; a dofollow/nofollow mix is healthier.',
+                g6: 'Risk levels: 80+ low risk, 50-79 medium, below 50 high (exact match above 15% carries high Penguin risk).',
+                typeTableTitle: '6 anchor types and ideal distribution',
+                thType: 'Anchor type', thExample: 'Example', thIdeal: 'Ideal share', thRule: 'Classification rule',
+                tBrand: 'Brand', tExact: 'Exact match', tPartial: 'Partial match', tGeneric: 'Generic', tNaked: 'Naked URL', tImage: 'Image', tOther: 'Other / long-tail', tEmpty: 'Empty',
+                tMailto: 'mailto', tTel: 'tel', tJs: 'JS link', tData: 'data', tAnchorLink: 'anchor',
+                r1: 'Contains the brand name entered above', r2: 'Anchor exactly equals the target keyword (highest risk)',
+                r3: 'Contains the target keyword but is not identical', r4: 'Matches a predefined generic-word list',
+                r5: 'The anchor itself is a URL or domain', r6: 'The link contains an <img> (alt used as anchor signal)',
+                idealNote: 'Natural backlink profile reference: brand 30-40% + exact <5% + partial 15-25% + generic 10-20% + naked URL 5-15% + image/other 10-20%.',
+                footer: 'All analysis runs locally in your browser; nothing is uploaded.',
+
+                scoreLabel: 'Anchor naturalness', dedOf100: '/ 100',
+                riskLow: 'Low risk', riskMid: 'Medium risk', riskHigh: 'High risk',
+                scTotal: 'Anchors', scInternal: 'Internal', scExternal: 'External', scDofollow: 'dofollow', scNofollow: 'nofollow',
+                scUnique: 'Unique anchors', scDiversity: 'Diversity', scImage: 'Image links', scExact: 'Exact match', scEmpty: 'Empty anchors',
+
+                distTitle: 'Anchor type distribution', distIn: 'in', distOut: 'out', none: '—',
+                dedTitle: 'Deductions', dedNone: 'No deductions', dedNoneDetail: 'All checks passed — the anchor profile looks natural.', dedUnit: '−{n} pts',
+
+                vAll: 'All', vInternal: 'Internal', vExternal: 'External', vAnchors: 'Top anchors', vIssues: 'Deductions', noMatch: 'No matching data',
+                thIndex: '#', thAnchor: 'Anchor text', thTypeC: 'Type', thUrl: 'Link URL', thIo: 'Scope', thRel: 'Rel',
+                ioIn: 'internal', ioOut: 'external', relDofollow: 'dofollow',
+                anchorTopTitle: 'Top 20 anchor texts', anchorCount: 'unique',
+
+                tip: 'Keep exact-match anchors under 5% and raise brand anchors to 30-40%; keep external links mixed dofollow/nofollow and vary the anchor wording.',
+
+                insExactT: 'Exact-match anchors too high',
+                insExactD: 'Exact-match anchors are {pct}% (ideal <5%), {n} links — Google Penguin over-optimization risk; dilute with brand and long-tail anchors.',
+                insBrandLowT: 'Brand share too low',
+                insBrandLowD: 'Brand anchors are only {pct}% (ideal 30-40%); natural profiles are dominated by brand anchors.',
+                insBrandOkT: 'Healthy brand share', insBrandOkD: 'Brand anchors account for {pct}%, in line with a natural profile.',
+                insPartialLowT: 'No partial-match anchors',
+                insPartialLowD: 'No partial-match anchors containing the target keyword were found; add long-tail/partial anchors to pass topical relevance.',
+                insGenericT: 'Too many generic anchors',
+                insGenericD: 'Generic anchors are {pct}% (ideal 10-20%), e.g. click here / read more — they pass almost no topical signal.',
+                insNakedT: 'Too many naked-URL anchors',
+                insNakedD: 'Naked URLs are {pct}% (ideal 5-15%); natural but keyword-less — pair them with descriptive anchors.',
+                insDiversityT: 'Low anchor diversity',
+                insDiversityD: 'Unique anchors are {pct}% (recommended ≥70%); excessive repetition can trigger spam signals.',
+                insDiversityOkT: 'Good anchor diversity', insDiversityOkD: 'Unique anchors are {pct}% — naturally diverse.',
+                insNofollowT: 'All external links are dofollow',
+                insNofollowD: '{n} external links with no nofollow at all; natural profiles usually mix in nofollow (social/forum/comments).',
+                insImageAltT: 'Image links missing alt',
+                insImageAltD: '{n} image links have no alt text, wasting the anchor signal.',
+                insEmptyT: 'Empty anchors found',
+                insEmptyD: '{n} links have no readable text; search engines cannot understand them.',
+                insOkT: 'Healthy anchor profile', insOkD: 'The distribution is close to a natural profile with low Penguin risk.'
+            }
+        };
+
+        // 语言默认：?language= 优先，否则跟随系统
+        const _langParam = new URLSearchParams(location.search).get('language');
+        let lang = (_langParam === 'zh' || _langParam === 'en')
+            ? _langParam
+            : ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+        const t = () => i18n[lang];
+        const $ = id => document.getElementById(id);
+        const fmt = (s, vars) => s.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined ? vars[k] : m));
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // 静态文案套用（data-i18n / data-i18n-ph）
+        function applyI18n() {
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.title = t().pageTitle;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const v = t()[el.dataset.i18n];
+                if (v !== undefined) el.textContent = v;
+            });
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+                const v = t()[el.dataset.i18nPh];
+                if (v !== undefined) el.placeholder = v;
+            });
+        }
+
+        /* ========== 主题 / 语言跟随系统 ========== */
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!new URLSearchParams(location.search).get('theme')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+        window.addEventListener('languagechange', () => {
+            if (_langParam === 'zh' || _langParam === 'en') return; // ?language= 显式指定时不跟随系统
+            lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+            applyI18n();
+            renderExamples();
+            if (result) render();
+        });
+
+        /* ========== 锚文本类型定义 ========== */
+        const TC = {
+            brand: '#2e6da4', exact_match: '#c0392b', partial_match: '#c07b1e',
+            generic: '#6e4db8', naked_url: '#1f7e7e', image: '#9e978f', other: '#2d7a4f'
+        };
+        const TYPES = ['brand', 'exact_match', 'partial_match', 'generic', 'naked_url', 'image', 'other'];
+        const TYPE_BADGE = {
+            brand: 'b-brand', exact_match: 'b-exact', partial_match: 'b-partial', generic: 'b-generic',
+            naked_url: 'b-naked', image: 'b-image', other: 'b-other',
+            mailto: 'b-mut', tel: 'b-mut', data: 'b-mut', anchorLink: 'b-mut', js: 'b-sp'
+        };
+        const TYPE_LABEL = {
+            brand: 'tBrand', exact_match: 'tExact', partial_match: 'tPartial', generic: 'tGeneric',
+            naked_url: 'tNaked', image: 'tImage', other: 'tOther', empty: 'tEmpty',
+            mailto: 'tMailto', tel: 'tTel', js: 'tJs', data: 'tData', anchorLink: 'tAnchorLink'
+        };
+        const PROXY = 'https://hmoexyz.qzz.io/api/proxy/get?url=';
+
+        // 通用词列表（小写）
+        const GENERIC_WORDS = new Set([
+            'click here', 'click', 'here', 'read more', 'read', 'learn more', 'learn', 'more', 'more info',
+            'more information', 'view more', 'view details', 'view', 'details', 'see more', 'see details',
+            'find out more', 'find more', 'go', 'go here', 'visit', 'visit site', 'visit website', 'website',
+            'link', 'this link', 'this page', 'this', 'this website', 'check it out', 'check this out',
+            'discover more', 'explore', 'continue reading', 'read the full article', 'read the full',
+            'read the full report', 'full article', 'source', 'the source', 'official site', 'official website',
+            'homepage', 'home page', 'get started', 'start now', 'try it', 'try now', 'sign up', 'open', 'browse',
+            'learn more here', 'click here to learn', 'click here for details', 'download', 'download now',
+            'buy now', 'shop now', 'subscribe'
+        ]);
+
+        /* ========== 10 种示例场景 ========== */
+        const PRESETS = [
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org/blog/">Primers 编程伙伴 博客</a>\n<a href="https://xplanc.org/echo-guide/">Primers 编程伙伴 echo 指南</a>\n<a href="https://xplanc.org/tools/">从 Primers 编程伙伴 学习 echo 用法</a>\n<a href="https://xplanc.org" rel="nofollow">Check out Primers 编程伙伴</a>\n<a href="https://xplanc.org/echo/">best practices for using echo in 2025</a>\n<a href="https://xplanc.org">read more</a>\n<a href="https://xplanc.org/tips/">useful terminal tips and techniques</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/guide/">comprehensive developer guide</a>\n<a href="https://xplanc.org" rel="nofollow">click here</a>\n<a href="https://xplanc.org/about/"><img src="logo.png" alt="Primers 编程伙伴 Logo"></a>\n<a href="https://xplanc.org/resources/">Primers 编程伙伴 资源</a>\n<a href="https://example.com/partner/">partner website for echo tools</a>\n<a href="https://xplanc.org">https://xplanc.org/blog</a>\n<a href="https://xplanc.org/contact/">get in touch with Primers 编程伙伴</a>\n<a href="https://xplanc.org/pricing/">view pricing details</a>\n<a href="https://xplanc.org/case-study/">real-world echo case study</a>\n<a href="/internal-page/">internal resource page</a>\n<a href="/blog/echo-tips/">learn more about improving workflows</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org/guide/">echo</a>\n<a href="https://xplanc.org/features/">echo command</a>\n<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org/pricing/">best echo guide</a>\n<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org/docs/">echo documentation</a>\n<a href="https://xplanc.org">learn more</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/signup/">echo for beginners</a>\n<a href="https://xplanc.org">echo</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org/pricing/">echo</a>\n<a href="https://xplanc.org/plans/">echo</a>\n<a href="https://xplanc.org">echo</a>\n<a href="https://xplanc.org/results/">echo</a>\n<a href="https://xplanc.org">buy echo guide</a>\n<a href="https://xplanc.org/about/">echo provider</a>\n<a href="https://xplanc.org">best echo</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org">click here</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org/features">Primers 编程伙伴 特性</a>\n<a href="https://xplanc.org/pricing">Primers 编程伙伴 定价</a>\n<a href="https://xplanc.org/blog">Primers 编程伙伴 博客</a>\n<a href="https://xplanc.org/themes">Primers 编程伙伴 主题</a>\n<a href="https://xplanc.org/apps">Primers 编程伙伴 应用商店</a>\n<a href="https://xplanc.org/partners">Primers 编程伙伴 合作伙伴</a>\n<a href="https://xplanc.org/plus">Primers 编程伙伴 Plus</a>\n<a href="https://xplanc.org">Primers 编程伙伴.com</a>\n<a href="https://xplanc.org/help">Primers 编程伙伴 帮助中心</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/echo/">https://xplanc.org/echo/</a>\n<a href="https://xplanc.org/docs/">https://xplanc.org/docs/</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/pricing/">https://xplanc.org/pricing/</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org">www.xplanc.org</a>\n<a href="https://xplanc.org/demo/">https://xplanc.org/demo/</a>\n<a href="https://xplanc.org">echo reference</a>\n<a href="https://xplanc.org">click here</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org">click here</a>\n<a href="https://xplanc.org/features">learn more</a>\n<a href="https://xplanc.org/pricing">read more</a>\n<a href="https://xplanc.org/templates">view details</a>\n<a href="https://xplanc.org/blog">here</a>\n<a href="https://xplanc.org">more</a>\n<a href="https://xplanc.org/university">click here to learn</a>\n<a href="https://xplanc.org">go</a>\n<a href="https://xplanc.org/showcase">see more</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org">best echo tool for developers</a>\n<a href="https://xplanc.org">https://xplanc.org</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org"><img src="banner.jpg" alt="Primers 编程伙伴 - 专业编程工具平台"></a>\n<a href="https://xplanc.org/tools/"><img src="tools.png" alt="Best echo tools for 2025"></a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org"><img src="logo.svg" alt="Primers 编程伙伴 Logo"></a>\n<a href="https://xplanc.org/gallery/"><img src="gallery.jpg" alt="Echo Gallery Showcase"></a>\n<a href="https://xplanc.org/pricing/">Primers 编程伙伴 价格方案</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/blog/">echo tips and tutorials</a>\n<a href="https://xplanc.org"><img src="promo.png" alt=""></a>\n<a href="https://xplanc.org/features/">learn more</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org/2025/03/echo-release/">Primers 编程伙伴 报道</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org/2025/03/dev-tools/">according to Primers 编程伙伴 analysis</a>\n<a href="https://xplanc.org/2025/02/echo-trends/">echo trends covered by Primers 编程伙伴</a>\n<a href="https://xplanc.org" rel="nofollow">source: Primers 编程伙伴</a>\n<a href="https://xplanc.org/news/">latest echo news</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/2025/03/report/">read the full Primers 编程伙伴 report</a>\n<a href="https://xplanc.org" rel="nofollow">click here for details</a>\n<a href="https://xplanc.org/data/">echo usage data from Primers 编程伙伴</a>\n<a href="https://devdocs.io" rel="nofollow">DevDocs database</a>\n<a href="https://xplanc.org/podcast/">Primers 编程伙伴 播客</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="https://xplanc.org/pro/pro-edition/">Primers 编程伙伴 Pro 版</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="https://xplanc.org/echo/">best echo tools under $100</a>\n<a href="https://xplanc.org/reviews/">echo tool comparison and review</a>\n<a href="https://xplanc.org" rel="sponsored">Primers 编程伙伴 商店</a>\n<a href="https://xplanc.org/deals/">check current deals on echo tools</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://xplanc.org/pro/pro-edition/"><img src="product.jpg" alt="Primers 编程伙伴 Pro 版产品图"></a>\n<a href="https://xplanc.org" rel="nofollow">learn more</a>\n<a href="https://xplanc.org/echo/">echo</a>\n<a href="https://amazon.com/primers" rel="sponsored nofollow">buy on Amazon</a>\n<a href="https://xplanc.org/warranty/">Primers 编程伙伴 保修信息</a>' },
+            { brand: 'Primers 编程伙伴', target: 'echo', domain: 'xplanc.org',
+              html: '<a href="/tutorials/echo-basics/">echo 命令深度解析</a>\n<a href="/blog/terminal-tips/">optimizing terminal workflows with echo</a>\n<a href="https://xplanc.org">Primers 编程伙伴</a>\n<a href="/guides/deploy/">complete deployment guide</a>\n<a href="https://reactjs.org" rel="nofollow">React official documentation</a>\n<a href="/blog/echo-2/">what is new in echo 2</a>\n<a href="https://xplanc.org/newsletter/">Primers 编程伙伴 周报</a>\n<a href="https://github.com/primers" rel="nofollow">Primers 编程伙伴 GitHub</a>\n<a href="/tools/bundler/">JavaScript bundler comparison tool</a>\n<a href="https://xplanc.org">https://xplanc.org</a>\n<a href="https://vercel.com" rel="nofollow">deploy with Vercel</a>\n<a href="/blog/typescript/">TypeScript best practices</a>\n<a href="https://xplanc.org/about/">about Primers 编程伙伴 engineering team</a>\n<a href="/courses/echo-mastery/">echo mastery course</a>\n<a href="https://xplanc.org" rel="nofollow">click here</a>' }
+        ];
+
+        function renderExamples() {
+            const bar = $('exampleBar');
+            if (!bar) return;
+            let h = '';
+            for (let i = 0; i < PRESETS.length; i++) {
+                h += '<button class="ex-btn" data-i18n="ex' + i + '" onclick="loadSample(' + i + ')">' + esc(t()['ex' + i]) + '</button>';
+            }
+            bar.innerHTML = h;
+        }
+
+        function loadSample(idx) {
+            switchMode('html');
+            const p = PRESETS[idx] || PRESETS[0];
+            $('brandInput').value = p.brand;
+            $('targetInput').value = p.target;
+            $('domainInput').value = p.domain;
+            $('htmlInput').value = p.html;
+            $('errorBox').classList.add('hidden');
+            toast(t().exLabel + '：' + t()['ex' + idx]);
+        }
+
+        /* ========== 全局状态 ========== */
+        let mode = 'url';        // 默认：输入网址
+        let result = null;       // 分析结果
+        let viewTab = 'all';     // 当前视图
+
+        function switchMode(m) {
+            mode = m;
+            $('tabHtml').classList.toggle('active', m === 'html');
+            $('tabUrl').classList.toggle('active', m === 'url');
+            $('inputHtml').classList.toggle('hidden', m !== 'html');
+            $('inputUrl').classList.toggle('hidden', m !== 'url');
+            $('errorBox').classList.add('hidden');
+        }
+
+        function showErr(msg) {
+            const box = $('errorBox');
+            box.textContent = '⚠️ ' + msg;
+            box.classList.remove('hidden');
+        }
+
+        function toast(msg) {
+            const el = $('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(el._h);
+            el._h = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+
+        /* ========== 规范化网址 ========== */
+        function normalizeUrl(input) {
+            let s = String(input || '').trim();
+            if (!s) return '';
+            if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) s = 'https://' + s;
+            try { return new URL(s).href; } catch (e) { return ''; }
+        }
+        const normHost = h => String(h || '').toLowerCase().replace(/^www\./, '');
+
+        /* ========== 锚文本分类 ========== */
+        const URL_RE = /^(https?:\/\/|www\.)\S+$/i;
+        const DOMAIN_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i;
+        const GENERIC_STRIP = /[.!?,;:…]+$/;
+
+        // 锚文本是否形如 URL / 域名
+        function looksLikeUrl(s) {
+            const x = String(s || '').trim();
+            if (!x || /\s/.test(x)) return false;
+            return URL_RE.test(x) || DOMAIN_RE.test(x);
+        }
+
+        // 单个锚文本的分类（不含空/图片判断）
+        function classifyText(text, brand, target) {
+            const n = String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            if (!n) return 'empty';
+            if (looksLikeUrl(text)) return 'naked_url';
+            const nb = String(brand || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            if (nb && n.indexOf(nb) !== -1) return 'brand';
+            const nt = String(target || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            if (nt) {
+                if (n.replace(GENERIC_STRIP, '') === nt) return 'exact_match';
+                const words = nt.split(' ').filter(Boolean);
+                if (words.length && words.every(w => n.indexOf(w) !== -1)) return 'partial_match';
+            }
+            if (GENERIC_WORDS.has(n.replace(GENERIC_STRIP, ''))) return 'generic';
+            return 'other';
+        }
+
+        /* ========== 核心分析 ========== */
+        const SCHEME_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*):/;
+
+        function analyzeHTML(html, baseUrl, brand, target, srcDomain) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nodes = Array.from(doc.querySelectorAll('a'));
+
+            // 页面基准
+            let base = null;
+            if (baseUrl) { try { base = new URL(baseUrl); } catch (e) { base = null; } }
+            if (!base) {
+                const cand = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
+                    || doc.querySelector('meta[property="og:url"]')?.getAttribute('content') || '';
+                if (/^https?:\/\//i.test(cand)) { try { base = new URL(cand); } catch (e) { } }
+            }
+            const siteHost = srcDomain ? normHost(srcDomain) : (base ? normHost(base.hostname) : '');
+
+            const links = [];
+            nodes.forEach(a => {
+                const rawHref = a.getAttribute('href');
+                const href = rawHref === null ? '' : String(rawHref).trim();
+                const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
+                const img = a.querySelector('img');
+                const hasImage = !!img;
+                const imgAlt = img ? (img.getAttribute('alt') || '').trim() : '';
+
+                const rel = (a.getAttribute('rel') || '').toLowerCase();
+                const relTokens = rel.split(/\s+/).filter(Boolean);
+                const nofollow = relTokens.indexOf('nofollow') !== -1;
+                const sponsored = relTokens.indexOf('sponsored') !== -1;
+                const ugc = relTokens.indexOf('ugc') !== -1;
+                const relOther = relTokens.filter(x => ['nofollow', 'sponsored', 'ugc', 'noopener', 'noreferrer'].indexOf(x) === -1);
+
+                // 解析绝对 URL
+                let resolved = null;
+                const sm = href.match(SCHEME_RE);
+                const scheme = sm ? sm[1].toLowerCase() : null;
+                if (href && !href.startsWith('#')) {
+                    if (!scheme || scheme === 'http' || scheme === 'https') {
+                        if (base) { try { resolved = new URL(href, base).href; } catch (e) { } }
+                        else if (scheme) { try { resolved = new URL(href).href; } catch (e) { } }
+                    }
+                }
+
+                // 内外链
+                let scope = 'other';
+                if (!href || href.startsWith('#') || (scheme && scheme !== 'http' && scheme !== 'https')) {
+                    scope = 'other';
+                } else {
+                    let host = null;
+                    if (resolved) { try { host = normHost(new URL(resolved).hostname); } catch (e) { } }
+                    if (host && siteHost) scope = host === siteHost ? 'internal' : 'external';
+                    else if (!scheme || href.startsWith('/') || /^[\w.\-]/.test(href)) scope = 'internal';
+                    else scope = host ? 'external' : 'other';
+                }
+                const isWeb = scope === 'internal' || scope === 'external';
+
+                // 分类
+                let type, anchor;
+                if (!isWeb) {
+                    // 非网页链接（mailto/tel/js/data/#/空）不计入锚文本画像
+                    if (!href) type = 'empty';
+                    else if (scheme === 'mailto') type = 'mailto';
+                    else if (scheme === 'tel') type = 'tel';
+                    else if (scheme === 'javascript') type = 'js';
+                    else if (scheme === 'data') type = 'data';
+                    else if (href.startsWith('#')) type = 'anchorLink';
+                    else type = 'other';
+                    anchor = text || (hasImage ? imgAlt : '');
+                } else if (!text && hasImage) {
+                    type = 'image';
+                    anchor = imgAlt;
+                } else if (!text && !hasImage) {
+                    type = 'empty';
+                    anchor = '';
+                } else {
+                    type = classifyText(text, brand, target);
+                    anchor = text;
+                }
+
+                links.push({
+                    href, display: resolved || href || '—', scope, type, anchor,
+                    hasImage, imgAlt, nofollow, sponsored, ugc, relOther,
+                    isProfile: isWeb && type !== 'empty' // 参与锚文本画像（有实际锚文本的网页链接）
+                });
+            });
+
+            /* ---------- 统计 ---------- */
+            const typeDist = {}, typeInOut = {};
+            TYPES.forEach(k => { typeDist[k] = 0; typeInOut[k] = { in: 0, out: 0 }; });
+
+            let profileTotal = 0, internal = 0, external = 0, dofollow = 0, nofollow = 0;
+            let imageCount = 0, emptyCount = 0, imgNoAlt = 0;
+            const anchorMap = {};   // 锚文本 -> {text,count,type,in,out}
+            const seenAnchor = {};
+
+            links.forEach(l => {
+                if (!l.isProfile) {
+                    if (l.type === 'empty') emptyCount++;
+                    return;
+                }
+                profileTotal++;
+                if (typeDist[l.type] === undefined) l.type = 'other';
+                typeDist[l.type]++;
+                if (l.scope === 'internal') { internal++; typeInOut[l.type].in++; } else { external++; typeInOut[l.type].out++; }
+                if (l.nofollow) nofollow++; else dofollow++;
+                if (l.type === 'image') { imageCount++; if (!l.imgAlt) imgNoAlt++; }
+
+                const key = l.anchor || (l.type === 'image' ? '[img]' : '');
+                if (key) {
+                    seenAnchor[key.toLowerCase()] = 1;
+                    if (!anchorMap[key]) anchorMap[key] = { text: key, count: 0, type: l.type, in: 0, out: 0 };
+                    anchorMap[key].count++;
+                    if (l.scope === 'internal') anchorMap[key].in++; else anchorMap[key].out++;
+                }
+            });
+
+            // 非网页链接里的空锚文本也计入提示（但不进画像）
+            const uniqueCount = Object.keys(seenAnchor).length;
+            const diversity = profileTotal > 0 ? Math.round(uniqueCount / profileTotal * 100) : 0;
+            const pctOf = k => profileTotal > 0 ? Math.round(typeDist[k] / profileTotal * 1000) / 10 : 0;
+
+            /* ---------- 评分（0-100），记录扣分 ---------- */
+            const deductions = [];
+            let score = 100;
+            const addDed = (key, points) => {
+                points = Math.round(points);
+                if (points > 0) { deductions.push({ key, points }); score -= points; }
+            };
+
+            const pctExact = pctOf('exact_match'), pctBrand = pctOf('brand'),
+                pctGeneric = pctOf('generic'), pctNaked = pctOf('naked_url');
+
+            addDed('exact', Math.min(40, Math.max(0, (pctExact - 5) * 2)));
+            if (profileTotal >= 5 && pctBrand < 20) addDed('brand', 10);
+            addDed('generic', Math.min(8, Math.max(0, pctGeneric - 25)));
+            addDed('naked', Math.min(6, Math.max(0, pctNaked - 25)));
+            addDed('imageAlt', Math.min(10, imgNoAlt * 3));
+            if (profileTotal >= 5) addDed('diversity', diversity < 50 ? 5 : (diversity < 70 ? 3 : 0));
+            if (external > 5 && nofollow === 0) addDed('nofollow', 5);
+            if (target && profileTotal >= 10 && typeDist['partial_match'] === 0) addDed('partial', 5);
+
+            score = Math.max(0, Math.min(100, Math.round(score)));
+
+            /* ---------- 洞察 ---------- */
+            const insights = [];
+            const dedOf = k => { const d = deductions.find(x => x.key === k); return d ? d.points : 0; };
+            const push = (level, titleKey, detailKey, vars, dedKey) =>
+                insights.push({ level, titleKey, detailKey, vars: vars || {}, ded: dedKey ? dedOf(dedKey) : 0 });
+
+            if (pctExact > 5) {
+                push(pctExact > 15 ? 'error' : 'warning', 'insExactT', 'insExactD',
+                    { pct: pctExact, n: typeDist['exact_match'] }, 'exact');
+            }
+            if (profileTotal >= 5) {
+                if (pctBrand < 20) push('warning', 'insBrandLowT', 'insBrandLowD', { pct: pctBrand }, 'brand');
+                else push('pass', 'insBrandOkT', 'insBrandOkD', { pct: pctBrand });
+            }
+            if (target && profileTotal >= 10 && typeDist['partial_match'] === 0) {
+                push('info', 'insPartialLowT', 'insPartialLowD', {}, 'partial');
+            }
+            if (pctGeneric > 25) push('warning', 'insGenericT', 'insGenericD', { pct: pctGeneric }, 'generic');
+            if (pctNaked > 25) push('info', 'insNakedT', 'insNakedD', { pct: pctNaked }, 'naked');
+            if (profileTotal >= 5) {
+                if (diversity < 70) push('warning', 'insDiversityT', 'insDiversityD', { pct: diversity }, 'diversity');
+                else push('pass', 'insDiversityOkT', 'insDiversityOkD', { pct: diversity });
+            }
+            if (external > 5 && nofollow === 0) push('warning', 'insNofollowT', 'insNofollowD', { n: external }, 'nofollow');
+            if (imgNoAlt > 0) push('warning', 'insImageAltT', 'insImageAltD', { n: imgNoAlt }, 'imageAlt');
+            if (emptyCount > 0) push('warning', 'insEmptyT', 'insEmptyD', { n: emptyCount });
+            if (!insights.some(i => i.level === 'error' || i.level === 'warning')) {
+                push('pass', 'insOkT', 'insOkD');
+            }
+
+            const anchors = Object.values(anchorMap).sort((a, b) => b.count - a.count).slice(0, 20);
+
+            return {
+                url: base ? base.href : '',
+                links, profileTotal, typeDist, typeInOut,
+                stats: {
+                    total: links.length, profileTotal, internal, external, dofollow, nofollow,
+                    unique: uniqueCount, diversity, image: imageCount, empty: emptyCount, imgNoAlt,
+                    exact: typeDist['exact_match'], brand: typeDist['brand']
+                },
+                anchors, score, deductions, insights
+            };
+        }
+
+        /* ========== 输入与抓取 ========== */
+        async function doAnalyze() {
+            $('errorBox').classList.add('hidden');
+            const btns = [$('btnAnalyzeUrl'), $('btnAnalyzeMain')];
+            btns.forEach(b => { b.disabled = true; b.innerHTML = '<span class="spin"></span>' + t().analyzing; });
+
+            try {
+                let html = '', base = '';
+                if (mode === 'html') {
+                    html = $('htmlInput').value.trim();
+                    if (!html) throw new Error(t().errHtml);
+                } else {
+                    const raw = $('urlInput').value.trim();
+                    if (!raw) throw new Error(t().errUrl);
+                    base = normalizeUrl(raw);
+                    if (!base) throw new Error(t().errBase + raw);
+                    html = await fetchPage(base);
+                }
+                const brand = $('brandInput').value.trim();
+                const target = $('targetInput').value.trim();
+                let domain = $('domainInput').value.trim();
+                // URL 模式自动补源域名
+                if (!domain && base) { try { domain = new URL(base).hostname; $('domainInput').value = domain; } catch (e) { } }
+
+                const r = analyzeHTML(html, base, brand, target, domain);
+                if (!r.links.length) throw new Error(t().errParse);
+                result = r;
+                viewTab = 'all';
+                render();
+                scrollToEl($('results'));
+            } catch (e) {
+                showErr(e.message || String(e));
+            } finally {
+                btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-anchor"></i><span>' + t().btnAnalyze + '</span>'; });
+            }
+        }
+
+        // 抓取页面：先直接请求，失败后再走公共 CORS 代理
+        async function fetchPage(url) {
+            try {
+                const r = await fetch(url, { redirect: 'follow' });
+                if (r.ok) return await r.text();
+            } catch (e) { /* 直连失败（多为 CORS），转代理 */ }
+            try {
+                const r = await fetch(PROXY + encodeURIComponent(url), { redirect: 'follow' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return await r.text();
+            } catch (e) {
+                throw new Error(t().errFetch);
+            }
+        }
+
+        // 注意：不要命名为 scrollTo，会覆盖原生 window.scrollTo 造成自递归
+        function scrollToEl(el) {
+            const top = el.getBoundingClientRect().top + window.pageYOffset - 80;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+
+        /* ========== 渲染 ========== */
+        function scoreColor(v) { return v >= 80 ? '#16a34a' : v >= 60 ? '#2563eb' : v >= 40 ? '#f59e0b' : '#ef4444'; }
+        function scoreColor2(v) { return v >= 80 ? '#4ade80' : v >= 60 ? '#60a5fa' : v >= 40 ? '#fbbf24' : '#f87171'; }
+        function riskLabel(v) { return v >= 80 ? t().riskLow : v >= 50 ? t().riskMid : t().riskHigh; }
+
+        function scoreRing(v) {
+            const c1 = scoreColor(v), c2 = scoreColor2(v);
+            const r = 42, circ = 2 * Math.PI * r, dl = circ * Math.min(v / 100, 1);
+            return '<div class="relative w-[100px] h-[100px] shrink-0">' +
+                '<svg width="100" height="100" class="-rotate-90" style="filter:drop-shadow(0 3px 8px ' + c1 + '55)">' +
+                '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="currentColor" class="text-slate-200 dark:text-slate-800" stroke-width="9"/>' +
+                '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="url(#scoreGrad)" stroke-width="9" stroke-linecap="round"' +
+                ' stroke-dasharray="' + dl + ' ' + (circ - dl) + '" style="transition:stroke-dasharray .6s ease"/>' +
+                '<defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="' + c1 + '"/><stop offset="100%" stop-color="' + c2 + '"/>' +
+                '</linearGradient></defs>' +
+                '</svg>' +
+                '<span class="absolute inset-0 flex items-center justify-center text-2xl font-black mono" style="color:' + c1 + ';text-shadow:0 0 16px ' + c1 + '66">' + v + '</span>' +
+                '</div>';
+        }
+
+        function statCard(label, value, color) {
+            return '<div class="stat-card" style="--sc:' + color + '">' +
+                '<div class="text-xl font-black mono stat-val">' + value + '</div>' +
+                '<div class="text-[10px] font-semibold stat-lbl">' + label + '</div></div>';
+        }
+
+        function typeBadge(type) {
+            const cls = TYPE_BADGE[type] || 'b-mut';
+            const label = t()[TYPE_LABEL[type]] || type;
+            return '<span class="badge ' + cls + '">' + label + '</span>';
+        }
+
+        function relHtml(l) {
+            let h = l.nofollow
+                ? '<span class="badge b-nf">nofollow</span>'
+                : '<span class="text-[11px] text-slate-400">' + t().relDofollow + '</span>';
+            if (l.sponsored) h += ' <span class="badge b-sp">sponsored</span>';
+            if (l.ugc) h += ' <span class="badge b-ugc">ugc</span>';
+            if (l.relOther && l.relOther.length) h += ' <span class="badge b-mut">' + esc(l.relOther.join(' ')) + '</span>';
+            return h;
+        }
+
+        function vtab(key, label) {
+            return '<button class="btn-ghost' + (viewTab === key ? ' active' : '') + '" onclick="setView(\'' + key + '\')">' + label + '</button>';
+        }
+
+        // 分布面板
+        function renderDist() {
+            const d = result, dist = d.typeDist, total = d.profileTotal;
+            const shown = TYPES.filter(k => dist[k] > 0);
+
+            let seg = '<div class="dist-segbar">';
+            if (!total) {
+                seg += '<div class="dist-seg" style="width:100%;background:#cbd5e1"></div>';
+            } else {
+                TYPES.forEach(k => {
+                    const pct = dist[k] / total * 100;
+                    if (pct <= 0) return;
+                    seg += '<div class="dist-seg" style="width:' + pct + '%;background:' + TC[k] + '" title="' +
+                        esc(t()[TYPE_LABEL[k]]) + ': ' + pct.toFixed(1) + '%">' + (pct >= 8 ? pct.toFixed(0) + '%' : '') + '</div>';
+                });
+            }
+            seg += '</div>';
+
+            let h = '<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">';
+            h += '<div class="panel-head ph-pink px-4 py-2.5 text-sm font-bold flex items-center justify-between">' +
+                '<span>📊 ' + t().distTitle + '</span>' +
+                '<span class="mono text-xs font-extrabold opacity-90">' + total + '</span></div>';
+            h += '<div class="p-4 space-y-3">' + seg;
+            if (!total) {
+                h += '<div class="text-center text-slate-400 py-4 text-sm">' + t().noMatch + '</div>';
+            } else {
+                // 每种类型一行：色点 + 名称 + 内/外 + 占比 + 小条
+                h += '<div class="space-y-1.5">';
+                TYPES.forEach(k => {
+                    const pct = dist[k] / total * 100;
+                    const io = d.typeInOut[k];
+                    h += '<div class="flex items-center gap-3">' +
+                        '<span class="text-xs font-semibold w-36 sm:w-44 shrink-0 truncate">' +
+                        '<span class="legend-dot" style="background:' + TC[k] + '"></span>' + t()[TYPE_LABEL[k]] + '</span>' +
+                        '<div class="dist-bar"><div class="dist-fill" style="width:' + pct.toFixed(1) + '%;background:' + TC[k] + '"></div></div>' +
+                        '<span class="mono text-xs font-bold w-8 text-right">' + dist[k] + '</span>' +
+                        '<span class="text-[10.5px] text-slate-400 w-6 text-right">' + pct.toFixed(1) + '%</span>' +
+                        '<span class="text-[10px] text-slate-400 w-20 text-right hidden sm:inline">' + t().distIn + ' ' + io.in + ' · ' + t().distOut + ' ' + io.out + '</span>' +
+                        '</div>';
+                });
+                h += '</div>';
+            }
+            h += '</div></div>';
+            return h;
+        }
+
+        // 高频锚文本
+        function renderAnchors() {
+            const anchors = result.anchors;
+            if (!anchors.length) return '<div class="text-center text-slate-400 py-10 text-sm">' + t().noMatch + '</div>';
+            const mx = anchors[0].count;
+            let h = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">' +
+                '<div class="panel-head ph-blue px-4 py-3 text-sm font-bold">' +
+                '🏆 ' + t().anchorTopTitle + '</div><div class="max-h-[520px] overflow-y-auto">';
+            anchors.forEach(a => {
+                const pct = mx > 0 ? (a.count / mx * 100) : 0;
+                const text = a.text.length > 60 ? a.text.slice(0, 60) + '…' : a.text;
+                h += '<div class="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">' +
+                    '<span class="text-xs font-semibold w-44 sm:w-56 truncate" title="' + esc(a.text) + '">' + esc(text) + '</span>' +
+                    '<span class="shrink-0">' + typeBadge(a.type) + '</span>' +
+                    '<div class="dist-bar"><div class="dist-fill" style="width:' + pct + '%"></div></div>' +
+                    '<span class="mono text-xs font-bold w-7 text-right">' + a.count + '</span>' +
+                    '<span class="text-[10px] text-slate-400 w-16 text-right">' + t().distIn + ' ' + a.in + ' ' + t().distOut + ' ' + a.out + '</span></div>';
+            });
+            return h + '</div></div>';
+        }
+
+        // 扣分项对应的链接
+        function matchIssue(l) {
+            if (l.type === 'empty') return true;
+            const keys = result.deductions.map(x => x.key);
+            if (keys.indexOf('exact') !== -1 && l.type === 'exact_match') return true;
+            if (keys.indexOf('brand') !== -1 && l.type === 'brand') return true;
+            if (keys.indexOf('generic') !== -1 && l.type === 'generic') return true;
+            if (keys.indexOf('naked') !== -1 && l.type === 'naked_url') return true;
+            if (keys.indexOf('imageAlt') !== -1 && l.type === 'image' && !l.imgAlt) return true;
+            if (keys.indexOf('nofollow') !== -1 && l.nofollow) return true;
+            return false;
+        }
+
+        function filteredLinks() {
+            if (viewTab === 'internal') return result.links.filter(l => l.scope === 'internal');
+            if (viewTab === 'external') return result.links.filter(l => l.scope === 'external');
+            if (viewTab === 'issues') return result.links.filter(matchIssue);
+            return result.links;
+        }
+
+        // 链接表
+        function renderLinkTable() {
+            const links = filteredLinks();
+
+            if (!links.length) return '<div class="text-center text-slate-400 py-10 text-sm">' + t().noMatch + '</div>';
+
+            let h = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">' +
+                '<div class="at-head"><span>' + t().thIndex + '</span><span>' + t().thAnchor + '</span>' +
+                '<span>' + t().thTypeC + '</span><span class="col-url">' + t().thUrl + '</span>' +
+                '<span>' + t().thIo + '</span><span class="col-rel">' + t().thRel + '</span></div>' +
+                '<div class="max-h-[560px] overflow-y-auto">';
+
+            links.slice(0, 300).forEach((l, i) => {
+                const show = l.display.length > 120 ? l.display.slice(0, 120) + '…' : l.display;
+                h += '<div class="at-row">';
+                h += '<span class="mono text-[10px] font-bold text-slate-400 pt-0.5">' + (i + 1) + '</span>';
+
+                // 锚文本
+                let anchorHtml;
+                if (l.type === 'image') {
+                    anchorHtml = '<span class="text-teal-600 dark:text-teal-400">[img' + (l.imgAlt ? ' alt="' + esc(l.imgAlt.slice(0, 40)) + '"' : '') + ']</span>';
+                } else if (l.anchor) {
+                    anchorHtml = esc(l.anchor.length > 70 ? l.anchor.slice(0, 70) + '…' : l.anchor);
+                } else {
+                    anchorHtml = '<span class="text-slate-300 dark:text-slate-600">' + t().none + '</span>';
+                }
+                h += '<div class="text-[12px] font-semibold break-words leading-snug min-w-0">' + anchorHtml + '</div>';
+
+                h += '<div>' + typeBadge(l.type) + '</div>';
+                h += '<div class="col-url min-w-0"><div class="mono text-[11px] break-all leading-snug text-sky-700 dark:text-sky-400">' + esc(show) + '</div></div>';
+                h += '<div class="text-[11px] text-slate-500 dark:text-slate-400">' + (l.scope === 'internal' ? t().ioIn : l.scope === 'external' ? t().ioOut : t().none) + '</div>';
+                h += '<div class="col-rel">' + (l.scope === 'internal' || l.scope === 'external' ? relHtml(l) : '<span class="text-[11px] text-slate-400">' + t().none + '</span>') + '</div>';
+                h += '</div>';
+            });
+            h += '</div></div>';
+            if (links.length > 300) h += '<div class="text-xs text-slate-400 mt-2 text-right">300 / ' + links.length + '</div>';
+            return h;
+        }
+
+        const DED_TITLE = {
+            exact: 'insExactT', brand: 'insBrandLowT', generic: 'insGenericT', naked: 'insNakedT',
+            imageAlt: 'insImageAltT', diversity: 'insDiversityT', nofollow: 'insNofollowT', partial: 'insPartialLowT'
+        };
+
+        function render() {
+            if (!result) return;
+            const el = $('results');
+            el.classList.remove('hidden');
+            const d = result, s = d.stats;
+            const dedTotal = d.deductions.reduce((a, x) => a + x.points, 0);
+            let h = '<div class="space-y-6 fade-in">';
+
+            if (d.url) {
+                h += '<div class="text-xs text-slate-400 -mt-2 break-all">🔗 <span class="mono font-semibold url-pill">' + esc(d.url) + '</span></div>';
+            }
+
+            // 评分 + 统计卡
+            h += '<div class="flex flex-wrap gap-4 items-stretch">';
+            h += '<div class="score-card rounded-2xl p-5 flex flex-col items-center justify-center gap-1 shrink-0" style="--sc:' + scoreColor(d.score) + '">' +
+                scoreRing(d.score) +
+                '<div class="text-xs font-extrabold" style="color:' + scoreColor(d.score) + '">' + riskLabel(d.score) + '</div>' +
+                '<div class="text-[10px] text-slate-400">' + t().scoreLabel + ' <span class="mono">' + t().dedOf100 + '</span></div>' +
+                '</div>';
+            h += '<div class="flex-1 grid grid-cols-3 sm:grid-cols-5 gap-2 content-start">';
+            h += statCard(t().scTotal, s.profileTotal, '#0f172a');
+            h += statCard(t().scInternal, s.internal, '#16a34a');
+            h += statCard(t().scExternal, s.external, '#2563eb');
+            h += statCard(t().scDofollow, s.dofollow, '#0d9488');
+            h += statCard(t().scNofollow, s.nofollow, '#7c3aed');
+            h += statCard(t().scUnique, s.unique, '#4f46e5');
+            h += statCard(t().scDiversity, s.diversity + '%', '#9333ea');
+            h += statCard(t().scImage, s.image, '#9e978f');
+            h += statCard(t().scExact, s.exact, '#c0392b');
+            h += statCard(t().scEmpty, s.empty, '#f59e0b');
+            h += '</div></div>';
+
+            // 分布
+            h += renderDist();
+
+            // 扣分明细
+            h += '<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">';
+            h += '<div class="panel-head ph-ded px-4 py-2.5 text-sm font-bold">🔻 ' + t().dedTitle +
+                (dedTotal > 0 ? ' <span class="mono text-xs font-extrabold opacity-90">' + fmt(t().dedUnit, { n: dedTotal }) + '</span>' : '') +
+                '</div>';
+            if (dedTotal > 0) {
+                d.deductions.forEach(dd => {
+                    h += '<div class="ded-row"><span class="ded-label">' + esc(t()[DED_TITLE[dd.key]] || dd.key) + '</span>' +
+                        '<span class="ded-pill">-' + dd.points + '</span></div>';
+                });
+            } else {
+                h += '<div class="ins-row r-pass"><div class="ins-dot ins-pass">✓</div>' +
+                    '<div><div class="text-[13px] font-semibold">' + t().dedNone + '</div>' +
+                    '<div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + t().dedNoneDetail + '</div></div></div>';
+            }
+            h += '</div>';
+
+            // 洞察
+            h += '<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">';
+            d.insights.forEach(ins => {
+                const cls = ins.level === 'pass' ? 'ins-pass' : ins.level === 'warning' ? 'ins-warn' : ins.level === 'error' ? 'ins-err' : 'ins-info';
+                const rcls = ins.level === 'pass' ? 'r-pass' : ins.level === 'warning' ? 'r-warn' : ins.level === 'error' ? 'r-err' : 'r-info';
+                const mark = ins.level === 'pass' ? '✓' : ins.level === 'warning' ? '!' : ins.level === 'error' ? '✕' : 'ℹ';
+                h += '<div class="ins-row ' + rcls + '"><div class="ins-dot ' + cls + '">' + mark + '</div>' +
+                    '<div class="flex-1"><div class="flex items-start gap-2 flex-wrap">' +
+                    '<span class="text-[13px] font-semibold">' + esc(t()[ins.titleKey]) + '</span>' +
+                    (ins.ded ? '<span class="ded-chip">-' + ins.ded + '</span>' : '') + '</div>' +
+                    '<div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">' + esc(fmt(t()[ins.detailKey], ins.vars)) + '</div></div></div>';
+            });
+            h += '</div>';
+
+            // 视图切换
+            h += '<div class="flex flex-wrap gap-2">';
+            h += vtab('all', t().vAll + ' ' + s.profileTotal);
+            h += vtab('internal', t().vInternal + ' ' + s.internal);
+            h += vtab('external', t().vExternal + ' ' + s.external);
+            h += vtab('anchors', t().vAnchors);
+            h += vtab('issues', '⚠ ' + t().vIssues + ' ' + result.links.filter(matchIssue).length);
+            h += '</div>';
+
+            if (viewTab === 'anchors') h += renderAnchors();
+            else h += renderLinkTable();
+
+            h += '<div class="tip-bar rounded-xl px-4 py-3 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">' +
+                '💡 <b class="font-extrabold">SEO</b> ' + t().tip + '</div>';
+
+            h += '</div>';
+            el.innerHTML = h;
+        }
+
+        function setView(v) { viewTab = v; render(); }
+
+        /* ========== 初始化 ========== */
+        applyI18n();
+        renderExamples();
+        // 支持 ?mode=html 显式切到源码模式（默认为网址模式）
+        if (new URLSearchParams(location.search).get('mode') === 'html') switchMode('html');
+    </script>
+</body>
+</html>
