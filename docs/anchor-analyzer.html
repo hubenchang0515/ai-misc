@@ -1058,6 +1058,7 @@
             if (viewTab === 'internal') return result.links.filter(l => l.scope === 'internal');
             if (viewTab === 'external') return result.links.filter(l => l.scope === 'external');
             if (viewTab === 'issues') return result.links.filter(matchIssue);
+            if (TYPES.indexOf(viewTab) !== -1) return result.links.filter(l => l.type === viewTab);
             return result.links;
         }
 
@@ -1178,6 +1179,7 @@
             h += vtab('external', t().vExternal + ' ' + s.external);
             h += vtab('anchors', t().vAnchors);
             h += vtab('issues', '⚠ ' + t().vIssues + ' ' + result.links.filter(matchIssue).length);
+            TYPES.forEach(k => { h += vtab(k, t()[TYPE_LABEL[k]] + ' ' + (d.typeDist[k] || 0)); });
             h += '</div>';
 
             if (viewTab === 'anchors') h += renderAnchors();
