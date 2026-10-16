@@ -194,6 +194,6 @@ npm run deploy       # npx wrangler pages deploy docs --branch main
 
 - **纯前端、保护隐私**：不要在服务端处理用户数据，避免引入需要后端的上传接口。
 - **离线可用**：第三方 JS/CSS/字体已本地化到 `docs/vendor/`，页面不依赖 CDN；引入新依赖请按第 3 节处理。
-- **仍依赖网络的功能**（属预期）：`linux-cmd` 的 sitemap、`pdf-view` 的示例 PDF、`qrcode` 解析远程图片时的 `corsproxy` 等运行时数据/接口未本地化；抓取第三方 URL 请按第 7 节「先直连、失败再用代理」处理。
+- **仍依赖网络的功能**（属预期）：`linux-cmd` 的 sitemap、`pdf-view` 的示例 PDF、`qrcode` 解析远程图片时的 CORS 代理等运行时数据/接口未本地化；抓取第三方 URL 请按第 7 节「先直连、失败再用代理」处理。
 - 新工具即新文件，不要修改无关工具的行为。
 - 修改主页 `toolsData` 后，请顺带确认 `README.md` 已同步。

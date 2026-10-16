@@ -217,6 +217,9 @@
         const canvas = document.getElementById('temp-canvas');
         const ctx = canvas.getContext('2d');
 
+        // 公共 CORS 代理（见 AGENT.md 第 7 节）：远程图片直连失败时回退
+        const CORS_PROXY = 'https://hmoexyz.qzz.io/api/proxy/get?url=';
+
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = e => handleFiles(e.target.files);
 
@@ -252,6 +255,21 @@
             if (url) processImage(url);
         }
 
+        // 加载图片：先直连，失败再回退到公共 CORS 代理（见 AGENT.md 第 7 节）
+        function loadImage(img, src, onFail) {
+            let usedProxy = false;
+            img.onerror = () => {
+                // 仅远程 http(s) 图片才走代理；data: 等本地来源直接判定失败
+                if (!usedProxy && /^https?:\/\//i.test(src)) {
+                    usedProxy = true;
+                    img.src = CORS_PROXY + encodeURIComponent(src);
+                    return;
+                }
+                onFail();
+            };
+            img.src = src;
+        }
+
         function processImage(src) {
             resultSpan.innerText = t.resScanning;
             const img = new Image();
@@ -271,14 +289,10 @@
                     resultSpan.innerText = t.resError;
                 }
             };
-            img.onerror = () => {
-                img.src = `https://corsproxy.io/?url=${src}`;
-                img.onerror = () => {
-                    resultSpan.className = "text-rose-400";
-                    resultSpan.innerText = t.resFail;
-                }
-            };
-            img.src = src;
+            loadImage(img, src, () => {
+                resultSpan.className = "text-rose-400";
+                resultSpan.innerText = t.resFail;
+            });
         }
     </script>
 </body>
