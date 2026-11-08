@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="canonical" href="https://misc.xplanc.org/image-watermark"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="图片加水印工具：为图片添加文字或 Logo 水印，支持平铺、旋转、透明度、描边与位置调整，纯前端本地处理。">
+    <title>图片加水印 · Image Watermark</title>
+    <script src="vendor/tailwindcss/cdn-3.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        // 主题默认：URL 参数 ?theme= 优先，否则跟随系统（无手动切换按钮）
+        (function () {
+            const p = new URLSearchParams(location.search).get('theme');
+            if (p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="vendor/font-awesome/7.0.1/css/all.min.css">
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+
+        /* Tailwind 的 img/canvas { display:block } 会覆盖 hidden 属性，这里强制生效 */
+        [hidden] { display: none !important; }
+
+        .field {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 11px;
+            font-size: 13px;
+            outline: none;
+            background: #fff;
+            color: #0f172a;
+        }
+        .field:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); }
+        .field:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+        .dark .field { background: #0f172a; border-color: #1e293b; color: #e2e8f0; }
+        .dark .field:disabled { background: #0b1220; color: #64748b; }
+
+        .field-label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+        .dark .field-label { color: #94a3b8; }
+
+        /* 上传区域 */
+        .drop {
+            border: 2px dashed #cbd5e1;
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all .2s ease;
+        }
+        .dark .drop { border-color: #334155; background: #0b1220; }
+        .drop:hover, .drop.drag { border-color: #6366f1; background: #eef2ff; }
+        .dark .drop:hover, .dark .drop.drag { background: #111c33; }
+        .drop .thumb { max-width: 100%; max-height: 150px; border-radius: 8px; margin: 0 auto; display: block; }
+        .drop .empty, .drop .thumb { pointer-events: none; }
+        .drop.has-file .empty { display: none; }
+
+        /* 透明背景棋盘格 */
+        .checker {
+            background-color: #fff;
+            background-image:
+                linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+                linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+                linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        }
+        .dark .checker {
+            background-color: #0f172a;
+            background-image:
+                linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+        }
+
+        #canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -10px rgba(0, 0, 0, .25);
+            cursor: zoom-in;
+        }
+
+        /* 全屏预览 */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(0, 0, 0, .88);
+            cursor: zoom-out;
+        }
+        .lightbox img {
+            max-width: 100%;
+            max-height: calc(100vh - 96px);
+            width: auto;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 20px 50px -10px rgba(0, 0, 0, .6);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, .12);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .lightbox-close:hover { background: rgba(255, 255, 255, .24); }
+        .lightbox-hint {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 16px;
+            text-align: center;
+            color: rgba(255, 255, 255, .65);
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        /* 预览卡片整体不超过视口高度的 45% */
+        .preview-card {
+            display: flex;
+            flex-direction: column;
+            max-height: 45vh;
+        }
+        .preview-card .preview-head,
+        .preview-card .preview-hint { flex: 0 0 auto; }
+        .preview-card .checker { flex: 1 1 auto; min-height: 0; }
+        .preview-card .checker.zoomable { cursor: zoom-in; }
+
+        /* 模式切换 */
+        .mode-tab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            transition: all .15s ease;
+        }
+        .dark .mode-tab { color: #94a3b8; }
+        .mode-tab.active { background: #fff; color: #4f46e5; box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
+        .dark .mode-tab.active { background: #0f172a; color: #a5b4fc; }
+
+        /* 九宫格位置选择 */
+        .pos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 96px; }
+        .pos-btn { height: 24px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; transition: all .15s ease; }
+        .dark .pos-btn { border-color: #334155; background: #0f172a; }
+        .pos-btn:hover { border-color: #6366f1; }
+        .pos-btn.active { background: #6366f1; border-color: #6366f1; }
+        .pos-disabled { opacity: .35; pointer-events: none; }
+
+        .toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: all .25s ease; z-index: 100; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen py-8 px-4 transition-colors duration-300">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight">
+                <span data-i18n="h1a">图片</span> <span class="text-indigo-600 dark:text-indigo-400" data-i18n="h1b">加水印</span>
+            </h1>
+            <p id="t-subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1" data-i18n="subtitle">为图片添加文字或 Logo 水印（纯前端处理）</p>
+        </header>
+
+        <div class="grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-6 items-start">
+
+            <!-- ============ 左侧：设置 ============ -->
+            <aside class="space-y-5">
+
+                <!-- 原图 -->
+                <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                    <h2 class="text-sm font-bold mb-3 flex items-center gap-2">
+                        <span class="w-1.5 h-4 rounded bg-indigo-500"></span>
+                        <span data-i18n="secUpload">原图</span>
+                    </h2>
+
+                    <div id="srcDrop" class="drop" role="button" tabindex="0">
+                        <div class="empty">
+                            <i class="fa-regular fa-image text-3xl text-slate-400 dark:text-slate-500 mb-2"></i>
+                            <p class="text-sm font-semibold" data-i18n="uploadTitle">点击或拖拽图片到此</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" data-i18n="uploadHint">也可以直接粘贴剪贴板中的图片</p>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5" data-i18n="uploadFormats">支持 JPG / PNG / WebP / GIF 等</p>
+                        </div>
+                        <img id="srcPreview" class="thumb" alt="source preview" hidden>
+                    </div>
+                    <input type="file" id="srcInput" accept="image/*" hidden>
+                    <p id="srcMeta" class="mt-2 text-xs text-slate-500 dark:text-slate-400" hidden></p>
+                </section>
+
+                <!-- 水印设置 -->
+                <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-bold flex items-center gap-2">
+                            <span class="w-1.5 h-4 rounded bg-violet-500"></span>
+                            <span data-i18n="secMark">水印设置</span>
+                        </h2>
+                        <button id="resetBtn" type="button" class="text-xs font-semibold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" data-i18n="reset">重置</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl mb-4">
+                        <button type="button" class="mode-tab active" data-mode="text">
+                            <i class="fa-solid fa-font"></i><span data-i18n="modeText">文字水印</span>
+                        </button>
+                        <button type="button" class="mode-tab" data-mode="logo">
+                            <i class="fa-regular fa-image"></i><span data-i18n="modeLogo">图片水印</span>
+                        </button>
+                    </div>
+
+                    <!-- 文字水印 -->
+                    <div id="panelText" class="space-y-4">
+                        <div>
+                            <label class="field-label" for="textContent" data-i18n="labelText">水印文字</label>
+                            <textarea id="textContent" rows="2" class="field resize-y" data-i18n-ph="phText" placeholder="例如：© Your Name"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="field-label" for="fontFamily" data-i18n="labelFont">字体</label>
+                                <select id="fontFamily" class="field">
+                                    <option value="system" data-i18n="fontSystem">系统默认</option>
+                                    <option value="serif" data-i18n="fontSerif">衬线体</option>
+                                    <option value="mono" data-i18n="fontMono">等宽体</option>
+                                    <option value="kai" data-i18n="fontKai">楷体</option>
+                                    <option value="hei" data-i18n="fontHei">黑体</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label" for="textColor" data-i18n="labelColor">颜色</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="textColor" value="#ffffff" class="h-[38px] w-12 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 cursor-pointer">
+                                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                                        <input type="checkbox" id="textBold" class="w-4 h-4 accent-indigo-600">
+                                        <span data-i18n="labelBold">加粗</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="field-label" for="size" data-i18n="labelSize">字号（相对短边）</label>
+                                <output id="sizeOut" class="text-xs text-slate-400">6%</output>
+                            </div>
+                            <input type="range" id="size" min="1" max="30" step="0.5" value="6" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="field-label" for="opacity" data-i18n="labelOpacity">不透明度</label>
+                                    <output id="opacityOut" class="text-xs text-slate-400">60%</output>
+                                </div>
+                                <input type="range" id="opacity" min="0" max="100" step="1" value="60" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="field-label" for="rotate" data-i18n="labelRotate">旋转角度</label>
+                                    <output id="rotateOut" class="text-xs text-slate-400">0°</output>
+                                </div>
+                                <input type="range" id="rotate" min="-180" max="180" step="1" value="0" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="field-label" for="strokeWidth" data-i18n="labelStrokeWidth">描边粗细</label>
+                                    <output id="strokeWidthOut" class="text-xs text-slate-400">8%</output>
+                                </div>
+                                <input type="range" id="strokeWidth" min="0" max="20" step="1" value="8" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                            </div>
+                            <div>
+                                <label class="field-label" for="strokeColor" data-i18n="labelStrokeColor">描边颜色</label>
+                                <input type="color" id="strokeColor" value="#000000" class="h-[34px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 cursor-pointer">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="field-label" for="textGap" data-i18n="labelGap">平铺间距</label>
+                                <output id="textGapOut" class="text-xs text-slate-400">8%</output>
+                            </div>
+                            <input type="range" id="textGap" min="0" max="40" step="1" value="8" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                        </div>
+
+                        <div class="flex items-center justify-between pt-1">
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" id="textTile" class="w-4 h-4 accent-indigo-600">
+                                <span data-i18n="labelTile">平铺水印</span>
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-slate-400 dark:text-slate-500" data-i18n="labelPos">位置</span>
+                                <div id="textPosGroup" class="pos-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图片水印 -->
+                    <div id="panelLogo" class="space-y-4 hidden">
+                        <div id="logoDrop" class="drop" role="button" tabindex="0">
+                            <div class="empty">
+                                <i class="fa-regular fa-images text-2xl text-slate-400 dark:text-slate-500 mb-2"></i>
+                                <p class="text-sm font-semibold" data-i18n="logoTitle">点击或拖拽 Logo</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" data-i18n="logoHint">透明背景的 PNG 效果更佳</p>
+                            </div>
+                            <img id="logoPreview" class="thumb" style="max-height:100px" alt="logo preview" hidden>
+                        </div>
+                        <input type="file" id="logoInput" accept="image/*" hidden>
+                        <p id="logoMeta" class="text-xs text-slate-500 dark:text-slate-400" hidden></p>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="field-label" for="logoScale" data-i18n="labelScale">Logo 宽度（相对原图）</label>
+                                <output id="logoScaleOut" class="text-xs text-slate-400">18%</output>
+                            </div>
+                            <input type="range" id="logoScale" min="2" max="100" step="1" value="18" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="field-label" for="logoOpacity" data-i18n="labelOpacity">不透明度</label>
+                                    <output id="logoOpacityOut" class="text-xs text-slate-400">80%</output>
+                                </div>
+                                <input type="range" id="logoOpacity" min="0" max="100" step="1" value="80" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="field-label" for="logoRotate" data-i18n="labelRotate">旋转角度</label>
+                                    <output id="logoRotateOut" class="text-xs text-slate-400">0°</output>
+                                </div>
+                                <input type="range" id="logoRotate" min="-180" max="180" step="1" value="0" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="field-label" for="logoGap" data-i18n="labelGap">平铺间距</label>
+                                <output id="logoGapOut" class="text-xs text-slate-400">8%</output>
+                            </div>
+                            <input type="range" id="logoGap" min="0" max="40" step="1" value="8" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                        </div>
+
+                        <div class="flex items-center justify-between pt-1">
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" id="logoTile" class="w-4 h-4 accent-indigo-600">
+                                <span data-i18n="labelTile">平铺水印</span>
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-slate-400 dark:text-slate-500" data-i18n="labelPos">位置</span>
+                                <div id="logoPosGroup" class="pos-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 导出 -->
+                <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                    <h2 class="text-sm font-bold mb-3 flex items-center gap-2">
+                        <span class="w-1.5 h-4 rounded bg-emerald-500"></span>
+                        <span data-i18n="secExport">导出</span>
+                    </h2>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="field-label" for="format" data-i18n="labelFormat">图片格式</label>
+                            <select id="format" class="field">
+                                <option value="png">PNG</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="webp" selected>WebP</option>
+                            </select>
+                        </div>
+                        <div id="qualityRow">
+                            <div class="flex items-center justify-between">
+                                <label class="field-label" for="quality" data-i18n="labelQuality">画质</label>
+                                <output id="qualityOut" class="text-xs text-slate-400">100%</output>
+                            </div>
+                            <input type="range" id="quality" min="10" max="100" step="1" value="100" class="w-full accent-indigo-600 dark:accent-indigo-400">
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="field-label" for="fileName" data-i18n="labelName">文件名</label>
+                        <input type="text" id="fileName" class="field" value="" spellcheck="false" disabled>
+                    </div>
+
+                    <button id="downloadBtn" type="button" disabled
+                        class="w-full mt-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span data-i18n="btnDownload">下载图片</span>
+                    </button>
+                </section>
+            </aside>
+
+            <!-- ============ 右侧：预览 ============ -->
+            <main class="order-first sticky top-2 z-10 lg:order-none lg:top-6">
+                <section class="preview-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                    <div class="preview-head flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-bold flex items-center gap-2">
+                            <span class="w-1.5 h-4 rounded bg-sky-500"></span>
+                            <span data-i18n="preview">预览</span>
+                        </h2>
+                        <span id="resolution" class="text-xs text-slate-400 dark:text-slate-500"></span>
+                    </div>
+
+                    <div class="checker rounded-xl p-4 flex items-center justify-center min-h-0 overflow-hidden">
+                        <div id="placeholder" class="text-center text-slate-400 dark:text-slate-600">
+                            <i class="fa-regular fa-image text-5xl block mx-auto mb-3"></i>
+                            <p class="text-sm" data-i18n="phPreview">上传图片后在此预览</p>
+                        </div>
+                        <canvas id="canvas" hidden></canvas>
+                    </div>
+
+                    <p class="preview-hint text-xs text-slate-400 dark:text-slate-500 mt-3" data-i18n="previewHint">预览按原图分辨率绘制，下载即所得。</p>
+                </section>
+            </main>
+        </div>
+
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 text-center" data-i18n="footer">所有处理均在浏览器本地完成，图片不会上传到任何服务器。</p>
+    </div>
+
+    <div id="lightbox" class="lightbox" hidden>
+        <button id="lightboxClose" type="button" class="lightbox-close" aria-label="关闭">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <img id="lightboxImg" alt="fullscreen preview">
+        <p class="lightbox-hint" data-i18n="fullscreenHint">点击任意位置关闭</p>
+    </div>
+
+    <div id="toast" class="toast px-4 py-2 rounded-xl bg-slate-800 text-white text-sm shadow-lg"></div>
+
+    <script>
+        /* ========== 国际化 ========== */
+        const i18n = {
+            zh: {
+                h1a: '图片', h1b: '加水印',
+                subtitle: '为图片添加文字或 Logo 水印（纯前端处理）',
+                secUpload: '原图', secMark: '水印设置', secExport: '导出',
+                uploadTitle: '点击或拖拽图片到此',
+                uploadHint: '也可以直接粘贴剪贴板中的图片',
+                uploadFormats: '支持 JPG / PNG / WebP（GIF 仅首帧）',
+                reset: '重置', modeText: '文字水印', modeLogo: '图片水印',
+                labelText: '水印文字', phText: '例如：© Your Name',
+                labelFont: '字体', fontSystem: '系统默认', fontSerif: '衬线体', fontMono: '等宽体', fontKai: '楷体', fontHei: '黑体',
+                labelColor: '颜色', labelBold: '加粗',
+                labelSize: '字号（相对短边）', labelOpacity: '不透明度', labelRotate: '旋转角度',
+                labelStrokeWidth: '描边粗细', labelStrokeColor: '描边颜色',
+                labelGap: '平铺间距', labelTile: '平铺水印', labelPos: '位置',
+                logoTitle: '点击或拖拽 Logo', logoHint: '透明背景的 PNG 效果更佳',
+                labelScale: 'Logo 宽度（相对原图）',
+                labelFormat: '图片格式', labelQuality: '画质', labelName: '文件名', btnDownload: '下载图片',
+                needImage: '请先上传图片', needLogo: '请先上传 Logo',
+                done: '已生成并开始下载', resetDone: '已重置水印参数',
+                pasteDone: '已从剪贴板读取图片', loadFail: '图片读取失败', exportFail: '导出失败，请重试',
+                preview: '预览', phPreview: '上传图片后在此预览',
+                previewHint: '预览按原图分辨率绘制，下载即所得。',
+                fullscreenTitle: '点击全屏预览', fullscreenHint: '点击任意位置关闭', close: '关闭',
+                footer: '所有处理均在浏览器本地完成，图片不会上传到任何服务器。',
+                posTL: '左上', posTC: '上中', posTR: '右上',
+                posML: '左中', posMC: '居中', posMR: '右中',
+                posBL: '左下', posBC: '下中', posBR: '右下'
+            },
+            en: {
+                h1a: 'Image', h1b: 'Watermark',
+                subtitle: 'Add text or logo watermarks to your images (all local)',
+                secUpload: 'Source image', secMark: 'Watermark', secExport: 'Export',
+                uploadTitle: 'Click or drop an image here',
+                uploadHint: 'You can also paste an image from the clipboard',
+                uploadFormats: 'JPG / PNG / WebP supported (GIF: first frame only)',
+                reset: 'Reset', modeText: 'Text', modeLogo: 'Image',
+                labelText: 'Watermark text', phText: 'e.g. © Your Name',
+                labelFont: 'Font', fontSystem: 'System', fontSerif: 'Serif', fontMono: 'Monospace', fontKai: 'KaiTi', fontHei: 'HeiTi',
+                labelColor: 'Color', labelBold: 'Bold',
+                labelSize: 'Size (of short side)', labelOpacity: 'Opacity', labelRotate: 'Rotation',
+                labelStrokeWidth: 'Stroke width', labelStrokeColor: 'Stroke color',
+                labelGap: 'Tile spacing', labelTile: 'Tile watermark', labelPos: 'Position',
+                logoTitle: 'Click or drop a logo', logoHint: 'A transparent PNG works best',
+                labelScale: 'Logo width (of image)',
+                labelFormat: 'Format', labelQuality: 'Quality', labelName: 'File name', btnDownload: 'Download',
+                needImage: 'Please upload an image first', needLogo: 'Please upload a logo first',
+                done: 'Download started', resetDone: 'Watermark settings reset',
+                pasteDone: 'Image pasted from clipboard', loadFail: 'Failed to read the image', exportFail: 'Export failed, please try again',
+                preview: 'Preview', phPreview: 'Upload an image to see the preview',
+                previewHint: 'Rendered at full resolution — what you see is what you get.',
+                fullscreenTitle: 'Click to preview fullscreen', fullscreenHint: 'Click anywhere to close', close: 'Close',
+                footer: 'Everything runs locally in your browser; images are never uploaded.',
+                posTL: 'Top left', posTC: 'Top center', posTR: 'Top right',
+                posML: 'Middle left', posMC: 'Center', posMR: 'Middle right',
+                posBL: 'Bottom left', posBC: 'Bottom center', posBR: 'Bottom right'
+            }
+        };
+
+        // 语言默认：URL 参数 ?language= 优先，否则跟随系统语言
+        const _langParam = new URLSearchParams(location.search).get('language');
+        let lang = (_langParam === 'zh' || _langParam === 'en')
+            ? _langParam
+            : ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+        const t = () => i18n[lang];
+        const $ = id => document.getElementById(id);
+
+        const FONTS = {
+            system: 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif',
+            serif: 'Georgia, "Times New Roman", "Songti SC", "SimSun", serif',
+            mono: 'ui-monospace, Consolas, "Courier New", monospace',
+            kai: '"KaiTi", "STKaiti", "Kaiti SC", serif',
+            hei: '"Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif'
+        };
+
+        const DEFAULTS = {
+            textContent: '© Your Name', fontFamily: 'system', textColor: '#ffffff', textBold: true,
+            size: 6, opacity: 60, rotate: 0, strokeWidth: 8, strokeColor: '#000000', textGap: 8,
+            textTile: false, logoScale: 18, logoOpacity: 80, logoRotate: 0, logoGap: 8, logoTile: false,
+            format: 'webp', quality: 100
+        };
+
+        const POSITIONS = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
+        const state = {
+            img: null, srcUrl: null,
+            logoImg: null, logoUrl: null,
+            mode: 'text'
+        };
+
+        const el = {
+            srcDrop: $('srcDrop'), srcInput: $('srcInput'), srcPreview: $('srcPreview'), srcMeta: $('srcMeta'),
+            logoDrop: $('logoDrop'), logoInput: $('logoInput'), logoPreview: $('logoPreview'), logoMeta: $('logoMeta'),
+            panelText: $('panelText'), panelLogo: $('panelLogo'),
+            textContent: $('textContent'), fontFamily: $('fontFamily'), textColor: $('textColor'), textBold: $('textBold'),
+            size: $('size'), opacity: $('opacity'), rotate: $('rotate'),
+            strokeWidth: $('strokeWidth'), strokeColor: $('strokeColor'), textGap: $('textGap'), textTile: $('textTile'),
+            logoScale: $('logoScale'), logoOpacity: $('logoOpacity'), logoRotate: $('logoRotate'), logoGap: $('logoGap'), logoTile: $('logoTile'),
+            format: $('format'), quality: $('quality'), qualityRow: $('qualityRow'),
+            fileName: $('fileName'), downloadBtn: $('downloadBtn'),
+            canvas: $('canvas'), placeholder: $('placeholder'), resolution: $('resolution'),
+            checker: document.querySelector('.preview-card .checker'),
+            lightbox: $('lightbox'), lightboxImg: $('lightboxImg'), lightboxClose: $('lightboxClose'),
+            textPosGroup: $('textPosGroup'), logoPosGroup: $('logoPosGroup')
+        };
+        const ctx = el.canvas.getContext('2d');
+
+        /* ========== 渲染 ========== */
+        let rafId = 0;
+        function scheduleRender() {
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = 0;
+                render();
+            });
+        }
+
+        function render() {
+            if (!state.img) {
+                el.canvas.hidden = true;
+                el.placeholder.hidden = false;
+                el.resolution.textContent = '';
+                el.downloadBtn.disabled = true;
+                el.fileName.value = '';
+                el.fileName.disabled = true;
+                el.checker.classList.remove('zoomable');
+                return;
+            }
+
+            el.canvas.hidden = false;
+            el.placeholder.hidden = true;
+            el.downloadBtn.disabled = false;
+            el.fileName.disabled = false;
+            el.checker.classList.add('zoomable');
+
+            const W = state.img.naturalWidth;
+            const H = state.img.naturalHeight;
+            el.canvas.width = W;
+            el.canvas.height = H;
+            el.resolution.textContent = `${W} × ${H}`;
+
+            ctx.clearRect(0, 0, W, H);
+            ctx.drawImage(state.img, 0, 0, W, H);
+
+            if (state.mode === 'text') {
+                drawTextWatermark(W, H);
+            } else {
+                drawLogoWatermark(W, H);
+            }
+
+            fitCanvas();
+        }
+
+        // 让预览 canvas 等比缩放并完整放入可用区域（卡片高度受 45vh 限制）
+        function fitCanvas() {
+            if (!state.img) return;
+            const checker = el.canvas.parentElement;
+            const cs = getComputedStyle(checker);
+            const availW = checker.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            const availH = checker.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            if (availW <= 0 || availH <= 0) return;
+
+            const ratio = state.img.naturalWidth / state.img.naturalHeight;
+            let w = Math.min(availW, state.img.naturalWidth);
+            let h = w / ratio;
+            if (h > availH) {
+                h = availH;
+                w = h * ratio;
+            }
+            el.canvas.style.width = Math.max(1, w) + 'px';
+            el.canvas.style.height = Math.max(1, h) + 'px';
+        }
+
+        function getPos(kind) {
+            const group = kind === 'text' ? el.textPosGroup : el.logoPosGroup;
+            const active = group.querySelector('.pos-btn.active');
+            return active ? active.dataset.pos : 'br';
+        }
+
+        function posX(pos, W, w, pad) {
+            if (pos.endsWith('l')) return pad + w / 2;
+            if (pos.endsWith('r')) return W - pad - w / 2;
+            return W / 2;
+        }
+
+        function posY(pos, H, h, pad) {
+            if (pos.startsWith('t')) return pad + h / 2;
+            if (pos.startsWith('b')) return H - pad - h / 2;
+            return H / 2;
+        }
+
+        // 绘制多行文字块（以 cx, cy 为中心）
+        function drawTextBlock(lines, cx, cy, lineHeight, hasStroke) {
+            const top = cy - (lineHeight * lines.length) / 2;
+            for (let i = 0; i < lines.length; i++) {
+                const y = top + lineHeight * (i + 0.5);
+                if (hasStroke) ctx.strokeText(lines[i], cx, y);
+                ctx.fillText(lines[i], cx, y);
+            }
+        }
+
+        function drawTextWatermark(W, H) {
+            const content = el.textContent.value;
+            if (!content || !content.trim()) return;
+
+            const lines = content.split('\n');
+            const short = Math.min(W, H);
+            const fontSize = Math.max(8, short * (parseFloat(el.size.value) / 100));
+            const family = FONTS[el.fontFamily.value] || FONTS.system;
+            const weight = el.textBold.checked ? '700' : '400';
+
+            ctx.save();
+            ctx.font = `${weight} ${fontSize}px ${family}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = el.textColor.value;
+            ctx.strokeStyle = el.strokeColor.value;
+            const strokePx = fontSize * (parseFloat(el.strokeWidth.value) / 100);
+            const hasStroke = strokePx > 0;
+            // lineWidth 不接受 0，关闭描边时用 hasStroke 控制
+            ctx.lineWidth = hasStroke ? strokePx : 1;
+            ctx.lineJoin = 'round';
+            ctx.globalAlpha = parseFloat(el.opacity.value) / 100;
+
+            const lineHeight = fontSize * 1.28;
+            const widths = lines.map(l => ctx.measureText(l || ' ').width);
+            const maxW = Math.max(...widths, 1);
+            const blockH = lineHeight * lines.length;
+            const gap = short * (parseFloat(el.textGap.value) / 100);
+            const rad = (parseFloat(el.rotate.value) * Math.PI) / 180;
+
+            if (el.textTile.checked) {
+                // 平铺：在旋转坐标系中铺满整张图的对角线范围
+                const diag = Math.hypot(W, H);
+                const tileW = Math.max(1, maxW + gap);
+                const tileH = Math.max(1, blockH + gap);
+                ctx.translate(W / 2, H / 2);
+                ctx.rotate(rad);
+                let row = 0;
+                for (let y = -diag / 2; y <= diag / 2; y += tileH) {
+                    const offset = (row % 2) ? tileW / 2 : 0;
+                    for (let x = -diag / 2 + offset; x <= diag / 2; x += tileW) {
+                        drawTextBlock(lines, x, y, lineHeight, hasStroke);
+                    }
+                    row++;
+                }
+            } else {
+                const pad = short * 0.04;
+                const pos = getPos('text');
+                const cx = posX(pos, W, maxW, pad);
+                const cy = posY(pos, H, blockH, pad);
+                ctx.translate(cx, cy);
+                ctx.rotate(rad);
+                drawTextBlock(lines, 0, 0, lineHeight, hasStroke);
+            }
+
+            ctx.restore();
+        }
+
+        function drawLogoWatermark(W, H) {
+            const logo = state.logoImg;
+            if (!logo) return;
+
+            const short = Math.min(W, H);
+            const w = W * (parseFloat(el.logoScale.value) / 100);
+            const h = w * (logo.naturalHeight / logo.naturalWidth);
+            if (!w || !h) return;
+
+            const rad = (parseFloat(el.logoRotate.value) * Math.PI) / 180;
+            const gap = short * (parseFloat(el.logoGap.value) / 100);
+
+            ctx.save();
+            ctx.globalAlpha = parseFloat(el.logoOpacity.value) / 100;
+
+            if (el.logoTile.checked) {
+                // 旋转后的包围盒，避免平铺时四个角被裁切
+                const bboxW = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
+                const bboxH = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+                const tile = document.createElement('canvas');
+                tile.width = Math.max(1, Math.ceil(bboxW + gap));
+                tile.height = Math.max(1, Math.ceil(bboxH + gap));
+
+                const tctx = tile.getContext('2d');
+                tctx.translate(tile.width / 2, tile.height / 2);
+                tctx.rotate(rad);
+                tctx.drawImage(logo, -w / 2, -h / 2, w, h);
+
+                const pattern = ctx.createPattern(tile, 'repeat');
+                ctx.fillStyle = pattern;
+                ctx.fillRect(0, 0, W, H);
+            } else {
+                const pad = short * 0.04;
+                const pos = getPos('logo');
+                const cx = posX(pos, W, w, pad);
+                const cy = posY(pos, H, h, pad);
+                ctx.translate(cx, cy);
+                ctx.rotate(rad);
+                ctx.drawImage(logo, -w / 2, -h / 2, w, h);
+            }
+
+            ctx.restore();
+        }
+
+        /* ========== 文件读取 ========== */
+        function formatSize(bytes) {
+            if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+            return (bytes / 1024).toFixed(1) + ' KB';
+        }
+
+        function loadSource(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast(t().loadFail);
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                if (state.srcUrl) URL.revokeObjectURL(state.srcUrl);
+                state.srcUrl = url;
+                state.img = img;
+
+                el.srcPreview.src = url;
+                el.srcPreview.hidden = false;
+                el.srcDrop.classList.add('has-file');
+                el.srcMeta.hidden = false;
+                el.srcMeta.textContent = `${img.naturalWidth} × ${img.naturalHeight} · ${formatSize(file.size)}`;
+
+                const base = file.name.replace(/\.[^.]+$/, '') || 'image';
+                el.fileName.value = base + '-watermarked';
+                render();
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                showToast(t().loadFail);
+            };
+            img.src = url;
+        }
+
+        function loadLogo(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast(t().loadFail);
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                if (state.logoUrl) URL.revokeObjectURL(state.logoUrl);
+                state.logoUrl = url;
+                state.logoImg = img;
+
+                el.logoPreview.src = url;
+                el.logoPreview.hidden = false;
+                el.logoDrop.classList.add('has-file');
+                el.logoMeta.hidden = false;
+                el.logoMeta.textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+                render();
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                showToast(t().loadFail);
+            };
+            img.src = url;
+        }
+
+        function bindDrop(zone, input, onFile) {
+            zone.addEventListener('click', () => {
+                input.value = '';
+                input.click();
+            });
+            zone.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    input.value = '';
+                    input.click();
+                }
+            });
+            zone.addEventListener('dragover', e => {
+                e.preventDefault();
+                zone.classList.add('drag');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('drag');
+                onFile(e.dataTransfer.files[0]);
+            });
+            input.addEventListener('change', e => onFile(e.target.files[0]));
+        }
+
+        /* ========== 界面联动 ========== */
+        function syncOutputs() {
+            $('sizeOut').textContent = el.size.value + '%';
+            $('opacityOut').textContent = el.opacity.value + '%';
+            $('rotateOut').textContent = el.rotate.value + '°';
+            $('strokeWidthOut').textContent = el.strokeWidth.value + '%';
+            $('textGapOut').textContent = el.textGap.value + '%';
+            $('logoScaleOut').textContent = el.logoScale.value + '%';
+            $('logoOpacityOut').textContent = el.logoOpacity.value + '%';
+            $('logoRotateOut').textContent = el.logoRotate.value + '°';
+            $('logoGapOut').textContent = el.logoGap.value + '%';
+            $('qualityOut').textContent = el.quality.value + '%';
+        }
+
+        function syncTileState() {
+            el.textPosGroup.classList.toggle('pos-disabled', el.textTile.checked);
+            el.logoPosGroup.classList.toggle('pos-disabled', el.logoTile.checked);
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            document.querySelectorAll('.mode-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            el.panelText.classList.toggle('hidden', mode !== 'text');
+            el.panelLogo.classList.toggle('hidden', mode !== 'logo');
+            scheduleRender();
+        }
+
+        function refreshPosTitles() {
+            [el.textPosGroup, el.logoPosGroup].forEach(group => {
+                group.querySelectorAll('.pos-btn').forEach(btn => {
+                    const key = 'pos' + btn.dataset.pos.toUpperCase();
+                    if (t()[key]) btn.title = t()[key];
+                });
+            });
+        }
+
+        function buildPosGroups() {
+            [el.textPosGroup, el.logoPosGroup].forEach(group => {
+                group.innerHTML = POSITIONS
+                    .map(p => `<button type="button" class="pos-btn" data-pos="${p}"></button>`)
+                    .join('');
+                group.querySelectorAll('.pos-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        group.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        scheduleRender();
+                    });
+                });
+                group.querySelector('[data-pos="br"]').classList.add('active');
+            });
+            refreshPosTitles();
+        }
+
+        function applyDefaults() {
+            el.textContent.value = DEFAULTS.textContent;
+            el.fontFamily.value = DEFAULTS.fontFamily;
+            el.textColor.value = DEFAULTS.textColor;
+            el.textBold.checked = DEFAULTS.textBold;
+            el.size.value = DEFAULTS.size;
+            el.opacity.value = DEFAULTS.opacity;
+            el.rotate.value = DEFAULTS.rotate;
+            el.strokeWidth.value = DEFAULTS.strokeWidth;
+            el.strokeColor.value = DEFAULTS.strokeColor;
+            el.textGap.value = DEFAULTS.textGap;
+            el.textTile.checked = DEFAULTS.textTile;
+            el.logoScale.value = DEFAULTS.logoScale;
+            el.logoOpacity.value = DEFAULTS.logoOpacity;
+            el.logoRotate.value = DEFAULTS.logoRotate;
+            el.logoGap.value = DEFAULTS.logoGap;
+            el.logoTile.checked = DEFAULTS.logoTile;
+            el.format.value = DEFAULTS.format;
+            el.quality.value = DEFAULTS.quality;
+            el.qualityRow.classList.toggle('hidden', DEFAULTS.format === 'png');
+
+            [el.textPosGroup, el.logoPosGroup].forEach(group => {
+                group.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === 'br'));
+            });
+            syncOutputs();
+            syncTileState();
+        }
+
+        function resetAll() {
+            applyDefaults();
+            setMode('text');
+            if (state.logoUrl) URL.revokeObjectURL(state.logoUrl);
+            state.logoImg = null;
+            state.logoUrl = null;
+            el.logoPreview.removeAttribute('src');
+            el.logoPreview.hidden = true;
+            el.logoDrop.classList.remove('has-file');
+            el.logoMeta.hidden = true;
+            el.logoMeta.textContent = '';
+            showToast(t().resetDone);
+            scheduleRender();
+        }
+
+        /* ========== 下载 ========== */
+        function download() {
+            if (!state.img) {
+                showToast(t().needImage);
+                return;
+            }
+            if (state.mode === 'logo' && !state.logoImg) {
+                showToast(t().needLogo);
+                return;
+            }
+
+            const fmt = el.format.value;
+            const mime = fmt === 'png' ? 'image/png' : (fmt === 'webp' ? 'image/webp' : 'image/jpeg');
+            const quality = parseFloat(el.quality.value) / 100;
+
+            let target = el.canvas;
+            // JPEG 不支持透明，先铺白底
+            if (fmt === 'jpeg') {
+                target = document.createElement('canvas');
+                target.width = el.canvas.width;
+                target.height = el.canvas.height;
+                const tctx = target.getContext('2d');
+                tctx.fillStyle = '#ffffff';
+                tctx.fillRect(0, 0, target.width, target.height);
+                tctx.drawImage(el.canvas, 0, 0);
+            }
+
+            target.toBlob(blob => {
+                if (!blob) {
+                    showToast(t().exportFail);
+                    return;
+                }
+                const base = (el.fileName.value.trim() || 'watermarked').replace(/\.[^.]+$/, '');
+                const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${base}.${ext}`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                showToast(t().done);
+            }, mime, quality);
+        }
+
+        /* ========== 全屏预览 ========== */
+        function openLightbox() {
+            if (!state.img) return;
+            el.lightboxImg.src = el.canvas.toDataURL('image/png');
+            el.lightbox.hidden = false;
+            document.body.style.overflow = 'hidden';
+            el.lightboxClose.focus();
+        }
+
+        function closeLightbox() {
+            if (el.lightbox.hidden) return;
+            el.lightbox.hidden = true;
+            document.body.style.overflow = '';
+        }
+
+        /* ========== 通用 ========== */
+        function showToast(msg) {
+            const toast = $('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(showToast._timer);
+            showToast._timer = setTimeout(() => toast.classList.remove('show'), 1600);
+        }
+
+        function applyI18n() {
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.querySelectorAll('[data-i18n]').forEach(node => {
+                const key = node.dataset.i18n;
+                if (t()[key] !== undefined) node.textContent = t()[key];
+            });
+            document.querySelectorAll('[data-i18n-ph]').forEach(node => {
+                const key = node.dataset.i18nPh;
+                if (t()[key] !== undefined) node.placeholder = t()[key];
+            });
+            el.canvas.title = t().fullscreenTitle;
+            el.lightboxClose.title = t().close;
+            el.lightboxClose.setAttribute('aria-label', t().close);
+            refreshPosTitles();
+        }
+
+        /* ========== 初始化 ========== */
+        bindDrop(el.srcDrop, el.srcInput, loadSource);
+        bindDrop(el.logoDrop, el.logoInput, loadLogo);
+
+        document.querySelectorAll('.mode-tab').forEach(btn => {
+            btn.addEventListener('click', () => setMode(btn.dataset.mode));
+        });
+
+        [el.textContent, el.fontFamily, el.textColor, el.textBold,
+         el.size, el.opacity, el.rotate, el.strokeWidth, el.strokeColor, el.textGap, el.textTile,
+         el.logoScale, el.logoOpacity, el.logoRotate, el.logoGap, el.logoTile].forEach(node => {
+            node.addEventListener('input', () => {
+                syncOutputs();
+                syncTileState();
+                scheduleRender();
+            });
+            node.addEventListener('change', () => {
+                syncOutputs();
+                syncTileState();
+                scheduleRender();
+            });
+        });
+
+        el.format.addEventListener('change', () => {
+            el.qualityRow.classList.toggle('hidden', el.format.value === 'png');
+        });
+        el.quality.addEventListener('input', syncOutputs);
+        el.downloadBtn.addEventListener('click', download);
+        $('resetBtn').addEventListener('click', resetAll);
+
+        // 点击预览区域全屏查看
+        el.checker.addEventListener('click', openLightbox);
+        el.lightbox.addEventListener('click', closeLightbox);
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+        // 粘贴图片
+        document.addEventListener('paste', e => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        loadSource(file);
+                        showToast(t().pasteDone);
+                    }
+                    break;
+                }
+            }
+        });
+
+        // 窗口尺寸变化时重新适配预览大小（不重绘水印）
+        let fitRafId = 0;
+        window.addEventListener('resize', () => {
+            if (fitRafId) return;
+            fitRafId = requestAnimationFrame(() => {
+                fitRafId = 0;
+                fitCanvas();
+            });
+        });
+
+        // 未通过参数指定时，跟随系统主题 / 语言变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {            if (!new URLSearchParams(location.search).get('theme')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+        window.addEventListener('languagechange', () => {
+            if (!_langParam) {
+                lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+                applyI18n();
+            }
+        });
+
+        buildPosGroups();
+        applyDefaults();
+        applyI18n();
+        setMode('text');
+    </script>
+</body>
+</html>

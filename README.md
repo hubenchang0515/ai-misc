@@ -19,6 +19,7 @@ AI 生成的一些乱七八糟的应用
 * [节拍器](https://hubenchang0515.github.io/ai-misc/metronome)
 * [扫雷](https://hubenchang0515.github.io/ai-misc/mine-sweeper)
 * [幻影图片合成](https://hubenchang0515.github.io/ai-misc/mirage-image)
+* [图片加水印](https://hubenchang0515.github.io/ai-misc/image-watermark)
 * [PDF 拼接](https://hubenchang0515.github.io/ai-misc/pdf-merge)
 * [PDF 拆分](https://hubenchang0515.github.io/ai-misc/pdf-split)
 * [PDF 转图片](https://hubenchang0515.github.io/ai-misc/pdf-to-png)
